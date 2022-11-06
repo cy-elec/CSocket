@@ -85,11 +85,11 @@ typedef struct csocket {
 	ACTIVITY
 */
 
-#define CSACT_CONN 1
-#define CSACT_DISCONN 2
-#define CSACT_READ 4
-#define CSACT_WRITE 8
-#define CSACT_EXT 16
+#define CSACT_TYPE_CONN 1
+#define CSACT_TYPE_DISCONN 2
+#define CSACT_TYPE_READ 4
+#define CSACT_TYPE_WRITE 8
+#define CSACT_TYPE_EXT 16
 
 typedef struct csocket_activity {
 	int fd;

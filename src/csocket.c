@@ -199,6 +199,9 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 		return -1;
 	}
 
+	// free activity, just in case
+	csocket_freeActivity(activity);
+
 	struct csocket_server server = *((struct csocket_server*)&src_socket->mode);
 
 
@@ -229,7 +232,7 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 		activity->domain = AF_INET6;
 	else
 		activity->domain = -1;
-	activity->type = CSACT_CONN;
+	activity->type = CSACT_TYPE_CONN;
 	activity->fd = server.client_fd;
 
 	// poll action
@@ -246,11 +249,11 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 		return -1;
 	}
 	if(FD_ISSET(activity->fd, &wr))
-		activity->type |= CSACT_WRITE;
+		activity->type |= CSACT_TYPE_WRITE;
 	if(FD_ISSET(activity->fd, &rd))
-		activity->type |= CSACT_READ;
+		activity->type |= CSACT_TYPE_READ;
 	if(FD_ISSET(activity->fd, &ex))
-		activity->type |= CSACT_EXT;
+		activity->type |= CSACT_TYPE_EXT;
 
 	return 0;
 }
@@ -268,11 +271,11 @@ void csocket_updateA(csocket_activity_t *activity) {
 		return;
 	}
 	if(FD_ISSET(activity->fd, &wr))
-		activity->type |= CSACT_WRITE;
+		activity->type |= CSACT_TYPE_WRITE;
 	if(FD_ISSET(activity->fd, &rd))
-		activity->type |= CSACT_READ;
+		activity->type |= CSACT_TYPE_READ;
 	if(FD_ISSET(activity->fd, &ex))
-		activity->type |= CSACT_EXT;
+		activity->type |= CSACT_TYPE_EXT;
 }
 // handling all clients - should be called in a while(true)
 int csocket_setUpMultiClient(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_activity_t), csocket_multiHandler_t *handler) {
