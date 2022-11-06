@@ -1,0 +1,7 @@
+{
+	"files.associations": {
+		"cparser.h": "c",
+		"select.h": "c",
+		"socket.h": "c"
+	}
+}
