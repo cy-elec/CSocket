@@ -24,20 +24,18 @@ int main(void) {
 	printf("listening: %d\n", csocket_listen(&socket, 3));
 
 	csocket_activity_t activity = CSOCKET_EMPTY;
-	printf("IP: %s\n", str);
+	char buf[12];
+
 	printf("accepting: %d\n", csocket_accept(&socket, &activity));
 	CSOCKET_NTOP(activity.domain, activity.addr, str, sizeof(str));
 	printf("ACTIVITY_IP: %s\n", str);
 	printf("ACTIVITY_LEN: %d\n", activity.addr_len);
-	printf("ACTIVITY_TYPE: %d\n", activity.type);
-
-	char buf[12];
+	printf("ACTIVITY_TYPE: %d\n", activity.type);	
 	csocket_recvA(&activity, buf, 12, 0);
 	printf("recv: %s\n", buf);
 
 	csocket_close(&socket);
 	csocket_freeActivity(&activity);
-
 	printf("closed\n");
 
 	return 0;
