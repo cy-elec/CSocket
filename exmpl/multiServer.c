@@ -21,7 +21,7 @@ void onActivity(csocket_activity_t act) {
 	if(csocket_hasRecvDataA(&act)) {
 		printf("\tReceived: ");
 		char buf;
-		while(csocket_recvA(&act, &buf, 1, 0)>0) {
+		while(csocket_recvA(&act, &buf, 1, 0), csocket_hasRecvDataA(&act)) {
 			printf("%c", buf);
 		}
 		printf("\t\n\n");
