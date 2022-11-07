@@ -25,6 +25,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <errno.h>
 #endif
 
@@ -90,20 +92,38 @@ typedef struct csocket {
 #define CSACT_TYPE_READ 4
 #define CSACT_TYPE_WRITE 8
 #define CSACT_TYPE_EXT 16
+#define CSACT_TYPE_DECLINED 32
 
 typedef struct csocket_activity {
+	// incoming socket
 	int fd;
-	int type;
 	int domain;
 	struct sockaddr *addr;
 	socklen_t addr_len;
+	// action type
+	int type;
 } csocket_activity_t;
 
 /*
 	multiHandler
 */
+struct csocket_clients {
+	// incoming socket
+	int fd;
+	int domain;
+	struct sockaddr *addr;
+	socklen_t addr_len;
+};
+
 typedef struct csocket_multiHandler {
-	int zero;
+	// socket
+	csocket_t *src_socket;
+	// handler function
+	void (*onActivity)(csocket_activity_t);
+	// client stash
+	int maxClients;
+	struct csocket_clients *client_sockets;
+
 } csocket_multiHandler_t;
 
 
@@ -124,8 +144,11 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity);
 void csocket_updateA(csocket_activity_t *activity);
 
 // handling all clients - should be called in a while(true)
-int csocket_setUpMultiClient(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_activity_t), csocket_multiHandler_t *handler);
-int csocket_multiClient(csocket_multiHandler_t *handler);
+int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_activity_t), csocket_multiHandler_t *handler);
+int csocket_multiServer(csocket_multiHandler_t *handler);
+
+// activity
+void csocket_printActivity(int fd, csocket_activity_t *activity);
 
 // read/write
 int csocket_hasRecvData(csocket_t *src_socket);
@@ -149,5 +172,6 @@ void csocket_close(csocket_t *src_socket);
 void csocket_free(csocket_t *src_socket);
 void csocket_freeActivity(csocket_activity_t *activity);
 void csocket_freeMultiHandler(csocket_multiHandler_t *handler);
+void csocket_freeClients(struct csocket_clients *client);
 
 #endif

@@ -44,7 +44,7 @@ static int _initSocket(int domain, int type, int protocol, void *addrc, int port
 
 static int _hasRecvData(int fd) {
 	char buf;
-	return -(recv(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT)!=1);
+	return (recv(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT)==1);
 }
 
 
@@ -60,6 +60,7 @@ int csocket_setAddress(struct sockaddr **out_addr, socklen_t *addr_len, int doma
 		addr->sin_family = AF_INET;
 		if(!specialAddr) {
 			if(1!=inet_pton(AF_INET, (char*)addrc, &addr->sin_addr)) {
+				free(addr);
 				return -1;
 			}
 		}
@@ -81,6 +82,7 @@ int csocket_setAddress(struct sockaddr **out_addr, socklen_t *addr_len, int doma
 		addr->sin6_family = AF_INET6;
 		if(!specialAddr) {
 			if(1!=inet_pton(AF_INET6, (char*)addrc, &addr->sin6_addr)) {
+				free(addr);
 				return -1;
 			}
 		}
@@ -194,10 +196,6 @@ int csocket_listen(csocket_t *src_socket, int maxQueue) {
 }
 int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 	if(!src_socket || !activity || src_socket->mode.sc!=1) return -1;
-	if(src_socket->type != SOCK_STREAM && src_socket->type != SOCK_SEQPACKET) {
-		strcpy(src_socket->last_err, "invalid type");
-		return -1;
-	}
 
 	// free activity, just in case
 	csocket_freeActivity(activity);
@@ -215,7 +213,7 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 		free(activity->addr);
 	activity->addr = calloc(1, activity->addr_len);
 
-	if(activity->addr == NULL) {
+	if(!activity->addr) {
 		strcpy(src_socket->last_err, "calloc");
 		return -1;
 	}
@@ -243,9 +241,11 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 	FD_SET(activity->fd, &wr);
 	FD_SET(activity->fd, &rd);
 	FD_SET(activity->fd, &ex);
-	int ret = select(activity->fd+1, &rd, &wr, &ex, NULL);
+
+	struct timeval TIMEVAL_ZERO = {0};
+	int ret = select(activity->fd+1, &rd, &wr, &ex, &TIMEVAL_ZERO);
 	if(ret < 0) {
-		strcpy(src_socket->last_err, "accept err");
+		strcpy(src_socket->last_err, "accept");
 		return -1;
 	}
 	if(FD_ISSET(activity->fd, &wr))
@@ -266,7 +266,8 @@ void csocket_updateA(csocket_activity_t *activity) {
 	FD_SET(activity->fd, &wr);
 	FD_SET(activity->fd, &rd);
 	FD_SET(activity->fd, &ex);
-	int ret = select(activity->fd+1, &rd, &wr, &ex, NULL);
+	struct timeval TIMEVAL_ZERO = {0};
+	int ret = select(activity->fd+1, &rd, &wr, &ex, &TIMEVAL_ZERO);
 	if(ret < 0) {
 		return;
 	}
@@ -278,17 +279,239 @@ void csocket_updateA(csocket_activity_t *activity) {
 		activity->type |= CSACT_TYPE_EXT;
 }
 // handling all clients - should be called in a while(true)
-int csocket_setUpMultiClient(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_activity_t), csocket_multiHandler_t *handler) {
-	if(!src_socket || src_socket->mode.sc!=1) return -1;
+int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_activity_t), csocket_multiHandler_t *handler) {
+	if(!src_socket || !handler || src_socket->mode.sc!=1) return -1;
+	
+	// free handler, just in case
+	csocket_freeMultiHandler(handler);
+
+	handler->src_socket = src_socket;
+	handler->onActivity = onActivity;
+	if(maxClient<1) {
+		strcpy(src_socket->last_err, "multiServer maxClient<1");
+		return -1;
+	} 
+	handler->maxClients = maxClient;
+
+	handler->client_sockets = calloc(maxClient, sizeof(struct csocket_clients));
+	if(!handler->client_sockets) {
+		strcpy(src_socket->last_err, "multiServer calloc");
+		return -1;
+	}
 
 	return 0;
 }
-int csocket_multiClient(csocket_multiHandler_t *handler) {
+int csocket_multiServer(csocket_multiHandler_t *handler) {
 	if(!handler) return -1;
 
+	/**
+	 * 1. SET FDS
+	 * 2. test root socket for read/write -> new client
+	 * 3. check other sockets on read and trigger onAction event
+	 * 
+	**/
+
+	struct csocket_server server= *((struct csocket_server*)&handler->src_socket->mode);
+
+	int maxfd = server.server_fd;
+
+	fd_set rd;
+	FD_ZERO(&rd);
+	FD_SET(server.server_fd, &rd);
+
+	// add other clients
+	for(int i=0; i<handler->maxClients; ++i) {
+		if(handler->client_sockets[i].fd>0) {
+			FD_SET(handler->client_sockets[i].fd, &rd);
+		}
+		maxfd = handler->client_sockets[i].fd>maxfd?handler->client_sockets[i].fd:maxfd;
+	}
+	struct timeval TIMEVAL_ZERO = {0};
+	if(select(maxfd+1, &rd, NULL, NULL, &TIMEVAL_ZERO)<0) {
+		return 0;
+	}
+
+	/*
+		HANDLE SELECTED EVENTS
+	*/
+
+	// action on server.server_fd -> new client
+	if(FD_ISSET(server.server_fd, &rd)) {
+
+		// new client
+		struct csocket_clients client = {0}; 
+		// set size
+		if(handler->src_socket->domain == AF_INET)
+			client.addr_len = sizeof(struct sockaddr_in);
+		else
+			client.addr_len = sizeof(struct sockaddr_in6);
+		
+		// alloc address
+		client.addr = calloc(1, client.addr_len);
+
+		if(!client.addr) {
+			strcpy(handler->src_socket->last_err, "multiServer calloc");
+			return -1;
+		}
+	
+		// accept
+		if((server.client_fd = accept(server.server_fd, client.addr, &client.addr_len)) < 0 ) {
+			free(client.addr);
+			strcpy(handler->src_socket->last_err, "multiServer accept");
+			return -1;
+		}
+
+		/**
+		 * 
+		 * FORM ACTIVITY AND CLIENT
+		 * 
+		**/
+		client.fd = server.client_fd;
+		
+		// verify size and set domain
+		if(client.addr_len == sizeof(struct sockaddr_in))
+			client.domain = AF_INET;
+		else if(client.addr_len == sizeof(struct sockaddr_in6))
+			client.domain = AF_INET6;
+		else
+			client.domain = -1;
+		
+		// set activity
+		csocket_activity_t activity = CSOCKET_EMPTY;
+		activity.fd = client.fd;
+		activity.domain = client.domain;
+		activity.addr = client.addr;
+		activity.addr_len = client.addr_len;
+		activity.type = CSACT_TYPE_CONN | CSACT_TYPE_DECLINED;
+
+		// poll action
+		fd_set wr2, rd2, ex2;
+		FD_ZERO(&wr2);
+		FD_ZERO(&rd2);
+		FD_ZERO(&ex2);
+		FD_SET(activity.fd, &wr2);
+		FD_SET(activity.fd, &rd2);
+		FD_SET(activity.fd, &ex2);
+		struct timeval TIMEVAL_ZERO = {0};
+		int ret = select(activity.fd+1, &rd2, &wr2, &ex2, &TIMEVAL_ZERO);
+		if(ret < 0) {
+			strcpy(handler->src_socket->last_err, "multiServer accept");
+			return -1;
+		}
+		if(FD_ISSET(activity.fd, &wr2))
+			activity.type |= CSACT_TYPE_WRITE;
+		if(FD_ISSET(activity.fd, &rd2))
+			activity.type |= CSACT_TYPE_READ;
+		if(FD_ISSET(activity.fd, &ex2))
+			activity.type |= CSACT_TYPE_EXT;
+
+		// add to list
+		for(int i=0; i<handler->maxClients; ++i) {
+			if(handler->client_sockets[i].fd == 0) {
+				handler->client_sockets[i] = client;
+				activity.type &= ~CSACT_TYPE_DECLINED;
+				break;
+			}
+		}
+		
+		// trigger action
+		if(handler->onActivity)
+			handler->onActivity(activity);
+	}
+
+	// action on any socket
+	for(int i=0; i<handler->maxClients; ++i) {
+		// client
+		struct csocket_clients client = handler->client_sockets[i]; 
+		if(FD_ISSET(client.fd, &rd)) {
+			// no data: disconnected
+			if(!_hasRecvData(client.fd)) {
+				/**
+				 * 
+				 * FORM ACTIVITY
+				 * 
+				**/
+				csocket_activity_t activity = CSOCKET_EMPTY;
+				activity.fd = client.fd;
+				activity.domain = client.domain;
+				activity.addr = client.addr;
+				activity.addr_len = client.addr_len;
+				activity.type = CSACT_TYPE_DISCONN;
+				
+				shutdown(client.fd, SHUT_RDWR);
+				
+				// trigger action
+				if(handler->onActivity) {
+					handler->onActivity(activity);
+					handler->client_sockets[i] = (const struct csocket_clients)CSOCKET_EMPTY;
+				}
+				else {
+					// free
+					csocket_freeActivity(&activity);
+					// write addr = NULL to prevent duplicate free
+					handler->client_sockets[i].addr = NULL;
+					csocket_freeClients(&handler->client_sockets[i]);
+				}
+			}
+			else {
+				/**
+				 * 
+				 * FORM ACTIVITY
+				 * 
+				**/
+				csocket_activity_t activity = CSOCKET_EMPTY;
+				activity.fd = client.fd;
+				activity.domain = client.domain;
+				activity.addr = client.addr;
+				activity.addr_len = client.addr_len;
+
+				// poll action
+				fd_set wr2, rd2, ex2;
+				FD_ZERO(&wr2);
+				FD_ZERO(&rd2);
+				FD_ZERO(&ex2);
+				FD_SET(activity.fd, &wr2);
+				FD_SET(activity.fd, &rd2);
+				FD_SET(activity.fd, &ex2);
+				struct timeval TIMEVAL_ZERO = {0};
+				int ret = select(activity.fd+1, &rd2, &wr2, &ex2, &TIMEVAL_ZERO);
+				if(ret < 0) {
+					strcpy(handler->src_socket->last_err, "multiServer socketchange");
+					return -1;
+				}
+				if(FD_ISSET(activity.fd, &wr2))
+					activity.type |= CSACT_TYPE_WRITE;
+				if(FD_ISSET(activity.fd, &rd2))
+					activity.type |= CSACT_TYPE_READ;
+				if(FD_ISSET(activity.fd, &ex2))
+					activity.type |= CSACT_TYPE_EXT;
+
+				// trigger action
+				if(handler->onActivity)
+					handler->onActivity(activity);
+			}
+		}
+	}
+
 	return 0;
 }
 
+// activity
+void csocket_printActivity(int fd, csocket_activity_t *activity) {
+	int fd2 = dup(fd);
+	if(!activity) return;
+	FILE *fp = fdopen(fd2, "w");
+	if(!fp) return;
+
+	char addrs[40];
+	CSOCKET_NTOP(activity->domain, activity->addr, addrs, 40);
+
+	fprintf(fp, ">>ACTIVITY::%s\n", addrs);
+	fprintf(fp, "\tType: %s%s%s%s%s%s\n", activity->type&CSACT_TYPE_CONN?"CONN ":"", activity->type&CSACT_TYPE_DISCONN?"DISCONN ":"", activity->type&CSACT_TYPE_READ?"READ ":"", activity->type&CSACT_TYPE_WRITE?"WRITE ":"", activity->type&CSACT_TYPE_EXT?"EXT ":"", activity->type&CSACT_TYPE_DECLINED?"DECLINED ":"");
+	fprintf(fp, "\t\n");
+
+	fclose(fp);
+}
 
 
 // read/write
@@ -381,6 +604,25 @@ void csocket_freeActivity(csocket_activity_t *activity) {
 
 void csocket_freeMultiHandler(csocket_multiHandler_t *handler) {
 	if(!handler) return;
+
+	// free
+	if(handler->client_sockets) {
+		free(handler->client_sockets);
+		handler->client_sockets = NULL;
+	}
+
 	// reset
 	*handler = (const csocket_multiHandler_t)CSOCKET_EMPTY;
+}
+void csocket_freeClients(struct csocket_clients *client) {
+	if(!client) return;
+
+	// free
+	if(client->addr) {
+		free(client->addr);
+		client->addr = NULL;
+	}
+
+	// reset
+	*client = (const struct csocket_clients)CSOCKET_EMPTY;
 }
