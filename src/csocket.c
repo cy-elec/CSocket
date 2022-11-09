@@ -44,7 +44,33 @@ static int _initSocket(int domain, int type, int protocol, void *addrc, int port
 
 static int _hasRecvData(int fd) {
 	char buf;
-	return (recv(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT)==1);
+	int res = 0;
+	// disable block and test recv
+	#ifdef _WIN32
+		{
+			u_long iMode = 1;
+			ioctlsocket(fd, FIONBIO, &iMode);
+			res = (recv(fd, &buf, 1, MSG_PEEK)==1);
+		}
+	#else
+		fcntl(fd, F_SETFL, O_NONBLOCK);
+		res = (recv(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT)==1);
+	#endif
+	
+
+	// enable block
+	#ifdef _WIN32
+		{
+			u_long iMode = 0;
+			ioctlsocket(fd, FIONBIO, &iMode);
+		}
+	#else
+		int flg = fcntl(fd, F_GETFL);
+		if(flg!=-1)
+			fcntl(fd, F_SETFL, flg & ~O_NONBLOCK);
+	#endif
+
+	return res;
 }
 
 
@@ -106,7 +132,12 @@ int csocket_initServerSocket(int domain, int type, int protocol, void *addrc, in
 	src_socket->mode.sc = 1;
 	// set reusable ports
 	{
-		int opt = 1;
+		#ifdef _WIN32
+			char
+		#else 
+			int
+		#endif 
+			opt = 1;
 		if(setsockopt(src_socket->mode.fd, SOL_SOCKET, SO_REUSEADDR|SO_REUSEPORT, &opt, sizeof(opt))) {
 			strcpy(src_socket->last_err, "setsockopt");
 			return -1;
@@ -140,7 +171,14 @@ int csocket_connectClient(csocket_t *src_socket, struct timeval *timeout) {
 	struct csocket_client client = *((struct csocket_client*)&src_socket->mode);
 	
 	// disable block
-	fcntl(client.client_fd, F_SETFL, O_NONBLOCK);
+	#ifdef _WIN32
+		{
+			u_long iMode = 0;
+			ioctlsocket(client.client_fd, FIONBIO, &iMode);
+		}
+	#else
+		fcntl(client.client_fd, F_SETFL, O_NONBLOCK);
+	#endif
 	
 	// connect
 	if(connect(client.client_fd, client.addr, client.addr_len) == -1) {
@@ -164,21 +202,37 @@ int csocket_connectClient(csocket_t *src_socket, struct timeval *timeout) {
 		strcpy(src_socket->last_err, "connect err");
 		return -1;
 	}
-	int err = 0;
+	#ifdef _WIN32
+		char
+	#else 
+		int
+	#endif 
+		err = 1;
 	socklen_t len = sizeof(int);
 	if((!FD_ISSET(client.client_fd, &rd)&&!FD_ISSET(client.client_fd, &wr)) || getsockopt(client.client_fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0) {
 		strcpy(src_socket->last_err, "connect none");
 		return -1;
 	}
 
-	// enable block
-	int flg = fcntl(client.client_fd, F_GETFL);
-	if(flg!=-1)
-		fcntl(client.client_fd, F_SETFL, flg & ~O_NONBLOCK);
+	#ifdef _WIN32
+		{
+			u_long iMode = 0;
+			ioctlsocket(client.client_fd, FIONBIO, &iMode);
+		}
+	#else
+		// enable block
+		int flg = fcntl(client.client_fd, F_GETFL);
+		if(flg!=-1)
+			fcntl(client.client_fd, F_SETFL, flg & ~O_NONBLOCK);
+	#endif
 
 	return -(err != 0);
 }
 
+
+const char * csocket_ntop(int domain, const void *addr, char *dst, socklen_t len) {
+	return inet_ntop(domain, domain==AF_INET?(void*)&(((struct sockaddr_in*)addr)->sin_addr):(void*)&(((struct sockaddr_in6*)addr)->sin6_addr), dst, len);
+}
 
 
 // one client at a time
@@ -625,4 +679,21 @@ void csocket_freeClients(struct csocket_clients *client) {
 
 	// reset
 	*client = (const struct csocket_clients)CSOCKET_EMPTY;
+}
+
+
+// non callable funtions
+static void __attribute__((constructor)) csocket_constructor() {
+	#ifdef _WIN32
+		WSADATA wsa;
+		WSAStartup(MAKEWORD(2,2), &wsa);
+	#endif
+	printf("%s\n", CSOCKET_START_MSG);
+}
+
+static void __attribute__((destructor)) csocket_destructor() {
+	#ifdef _WIN32
+		WSACleanup();
+	#endif
+	printf("%s\n", CSOCKET_CLOSE_MSG);
 }

@@ -14,10 +14,43 @@
 #define _CSOCKET_H
 
 #ifdef _WIN32
-#include <winsock2.h>
+#ifndef NTDDI_VERSION
+#define NTDDI_VERSION NTDDI_VISTA
+#endif
+#ifndef WINVER
+#define WINVER _WIN32_WINNT_VISTA
+#endif
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT _WIN32_WINNT_VISTA
 #endif
 
-#ifdef linux
+#pragma comment(lib, "ws2_32.lib")
+
+#include <winsock2.h>
+#include <Ws2tcpip.h>
+#include <stdio.h>
+#include <io.h>
+
+// socket 
+#define socklen_t int
+typedef struct in_addr in_addr_t;
+#define SO_REUSEPORT 0
+
+// shutdown
+#define SHUT_RD SD_RECEIVE
+#define SHUT_WR SD_SEND
+#define SHUT_RDWR SD_BOTH
+
+// MESSAGES
+#define CSOCKET_START_MSG "Running CSocket for Windows by Felix Kroehnert"
+#define CSOCKET_CLOSE_MSG "Stopping CSocket for Windows by Felix Kroehnert..."
+
+#else 
+
+// MESSAGES
+#define CSOCKET_START_MSG "Running CSocket for *nix by Felix Kroehnert"
+#define CSOCKET_CLOSE_MSG "Stopping CSocket for *nix by Felix Kroehnert..."
+
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -32,10 +65,11 @@
 
 /**
  * 
- * MACROS
+ * MACROS AND CORRESPONDING FUNCTIONS
  * 
 **/
-#define CSOCKET_NTOP(domain, addr, str, strlen) inet_ntop(domain, domain==AF_INET?(void*)&(((struct sockaddr_in*)addr)->sin_addr):(void*)&(((struct sockaddr_in6*)addr)->sin6_addr), str, strlen)
+const char * csocket_ntop(int domain, const void *addr, char *dst, socklen_t len);
+#define CSOCKET_NTOP(domain, addr, str, strlen) csocket_ntop(domain, addr, str, strlen)
 #define CSOCKET_EMPTY {0}
 
 struct csocket_mode {
@@ -173,5 +207,10 @@ void csocket_free(csocket_t *src_socket);
 void csocket_freeActivity(csocket_activity_t *activity);
 void csocket_freeMultiHandler(csocket_multiHandler_t *handler);
 void csocket_freeClients(struct csocket_clients *client);
+
+
+// non callable funtions
+static void __attribute__((constructor)) csocket_constructor();
+static void __attribute__((destructor)) csocket_destructor();
 
 #endif

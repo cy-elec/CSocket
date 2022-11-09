@@ -1,5 +1,5 @@
 /**
- * @file simpleClient.c
+ * @file simpleClient6.c
  * @author Felix Kröhnert (felix.kroehnert@online.de)
  * @brief 
  * @version 0.1
@@ -16,7 +16,7 @@
 int main(void) {
 
 	csocket_t socket = CSOCKET_EMPTY;
-	printf("init: %d\n", csocket_initClientSocket(AF_INET, SOCK_STREAM, 0, "127.0.0.1", 4200, &socket, 0));
+	printf("init: %d\n", csocket_initClientSocket(AF_INET6, SOCK_STREAM, 0, "::1", 4200, &socket, 0));
 
 	char str[100];
 	CSOCKET_NTOP(socket.domain, socket.mode.addr, str, 100);
