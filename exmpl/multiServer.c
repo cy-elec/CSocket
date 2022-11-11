@@ -18,7 +18,7 @@
 void onActivity(csocket_activity_t act) {
 	csocket_printActivity(fileno(stdout), &act);
 	// if data, print
-	if(csocket_hasRecvDataA(&act)) {
+	if(act.type&CSACT_TYPE_READ) {
 		printf("\tReceived: ");
 		char buf;
 		while(csocket_recvA(&act, &buf, 1, 0), csocket_hasRecvDataA(&act)) {
@@ -41,15 +41,26 @@ int main(void) {
 	signal(SIGINT, onkill);
 
 	csocket_t socket = CSOCKET_EMPTY;
-	printf("init: %d\n", csocket_initServerSocket(AF_INET, SOCK_STREAM, 0, INADDR_ANY, 4200, &socket, 1));
+	csocket_multiHandler_t handler = CSOCKET_EMPTY;
 	char str[100];
+	int rval;
+
+	rval = csocket_initServerSocket(AF_INET, SOCK_STREAM, 0, INADDR_ANY, 4200, &socket, 1);
+	printf("init: %d\n", rval);
+	if(rval) return 1;
+
 	CSOCKET_NTOP(socket.domain, socket.mode.addr, str, 100);
 
-	printf("binding: %d\n", csocket_bindServer(&socket));
-	printf("listening: %d\n", csocket_listen(&socket, 3));
+	rval = csocket_bindServer(&socket);
+	printf("binding: %d\n", rval);
+	if(rval) return 1;
+	rval = csocket_listen(&socket, 3);
+	printf("listening: %d\n", rval);
+	if(rval) return 1;
 
-	csocket_multiHandler_t handler = CSOCKET_EMPTY;
-	printf("setting up multiServer: %d\n", csocket_setUpMultiServer(&socket, 64, &onActivity, &handler));
+	rval = csocket_setUpMultiServer(&socket, 64, &onActivity, &handler);
+	printf("setting up multiServer: %d\n", rval);
+	if(rval) return 1;
 
 	while(loop) {
 		if(csocket_multiServer(&handler)) {
