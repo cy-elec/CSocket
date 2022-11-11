@@ -45,6 +45,9 @@ typedef struct in_addr in_addr_t;
 #define CSOCKET_START_MSG "Running CSocket for Windows by Felix Kroehnert"
 #define CSOCKET_CLOSE_MSG "Stopping CSocket for Windows by Felix Kroehnert..."
 
+// errno
+#define CS_EINPROGRESS WSAEINPROGRESS
+
 #else 
 
 // MESSAGES
@@ -61,6 +64,10 @@ typedef struct in_addr in_addr_t;
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+
+// errno
+#define CS_EINPROGRESS EINPROGRESS
+
 #endif
 
 /**

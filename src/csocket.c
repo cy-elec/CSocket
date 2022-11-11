@@ -182,7 +182,7 @@ int csocket_connectClient(csocket_t *src_socket, struct timeval *timeout) {
 	
 	// connect
 	if(connect(client.client_fd, client.addr, client.addr_len) == -1) {
-		if(errno != EINPROGRESS) {
+		if(errno != CS_EINPROGRESS) {
 			strcpy(src_socket->last_err, "connect err");
 			return -1;
 		}
