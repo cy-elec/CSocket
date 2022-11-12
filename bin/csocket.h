@@ -30,6 +30,7 @@
 #include <Ws2tcpip.h>
 #include <stdio.h>
 #include <io.h>
+#include <time.h>
 
 // socket 
 #define socklen_t int
@@ -142,6 +143,9 @@ typedef struct csocket_activity {
 	socklen_t addr_len;
 	// action type
 	int type;
+	// timestamps
+	time_t time;
+	time_t update_time;
 } csocket_activity_t;
 
 /*

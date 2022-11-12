@@ -287,6 +287,10 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 	activity->type = CSACT_TYPE_CONN;
 	activity->fd = server.client_fd;
 
+	// set time
+	activity->time = time(NULL);
+	activity->update_time = activity->time;
+
 	// poll action
 	fd_set wr, rd, ex;
 	FD_ZERO(&wr);
@@ -325,6 +329,10 @@ void csocket_updateA(csocket_activity_t *activity) {
 	if(ret < 0) {
 		return;
 	}
+
+	// set time
+	activity->update_time = time(NULL);
+
 	if(FD_ISSET(activity->fd, &wr))
 		activity->type |= CSACT_TYPE_WRITE;
 	if(FD_ISSET(activity->fd, &rd))
@@ -437,6 +445,9 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 		activity.addr = client.addr;
 		activity.addr_len = client.addr_len;
 		activity.type = CSACT_TYPE_CONN | CSACT_TYPE_DECLINED;
+		// set time
+		activity.time = time(NULL);
+		activity.update_time = activity.time;
 
 		// poll action
 		fd_set wr2, rd2, ex2;
@@ -491,6 +502,9 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 				activity.addr = client.addr;
 				activity.addr_len = client.addr_len;
 				activity.type = CSACT_TYPE_DISCONN;
+				// set time
+				activity.time = time(NULL);
+				activity.update_time = activity.time;
 				
 				shutdown(client.fd, SHUT_RDWR);
 				
@@ -518,6 +532,9 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 				activity.domain = client.domain;
 				activity.addr = client.addr;
 				activity.addr_len = client.addr_len;
+				// set time
+				activity.time = time(NULL);
+				activity.update_time = activity.time;
 
 				// poll action
 				fd_set wr2, rd2, ex2;
@@ -560,7 +577,8 @@ void csocket_printActivity(int fd, csocket_activity_t *activity) {
 	char addrs[40];
 	CSOCKET_NTOP(activity->domain, activity->addr, addrs, 40);
 
-	fprintf(fp, ">>ACTIVITY::%s\n", addrs);
+	fprintf(fp, "[%.24s] >> %s", ctime(&activity->time), addrs);
+	fprintf(fp, "\tLast update: %.24s\n", ctime(&activity->update_time));
 	fprintf(fp, "\tType: %s%s%s%s%s%s\n", activity->type&CSACT_TYPE_CONN?"CONN ":"", activity->type&CSACT_TYPE_DISCONN?"DISCONN ":"", activity->type&CSACT_TYPE_READ?"READ ":"", activity->type&CSACT_TYPE_WRITE?"WRITE ":"", activity->type&CSACT_TYPE_EXT?"EXT ":"", activity->type&CSACT_TYPE_DECLINED?"DECLINED ":"");
 	fprintf(fp, "\t\n");
 
