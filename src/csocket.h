@@ -55,7 +55,6 @@ typedef struct in_addr in_addr_t;
 #define CSOCKET_CLOSE_MSG "Stopping CSocket for *nix by Felix Kroehnert..."
 
 #include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <time.h>
 #include <fcntl.h>
