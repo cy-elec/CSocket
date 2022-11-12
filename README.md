@@ -21,5 +21,5 @@
 	```
 * *nix:
 	```
-    arpa/inet.h	sys/socket.h time.h fcntl.h string.h stdlib.h stdio.h unistd.h errno.h
+    arpa/inet.h sys/socket.h time.h fcntl.h string.h stdlib.h stdio.h unistd.h errno.h
 	```
