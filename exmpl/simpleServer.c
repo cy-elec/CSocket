@@ -21,7 +21,7 @@ int main(void) {
 	char buf[100];
 	int rval;
 
-	rval = csocket_initServerSocket(AF_INET, SOCK_STREAM, 0, INADDR_ANY, 4200, &socket, 1);
+	rval = csocket_initServerSocket(AF_INET, SOCK_STREAM, 0, (void*)&inaddr_any, 4200, &socket, 1);
 	printf("init: %d\n", rval);
 	if(rval) return 1;
 	CSOCKET_NTOP(socket.domain, socket.mode.addr, str, 100);

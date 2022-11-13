@@ -12,6 +12,7 @@
 
 #include "csocket.h"
 
+const struct in_addr inaddr_any = {.s_addr = INADDR_ANY};
 
 static int _initSocket(int domain, int type, int protocol, void *addrc, int port, csocket_t *src_socket, int specialAddr) {
 	if(!src_socket) return -1;
@@ -91,8 +92,7 @@ int csocket_setAddress(struct sockaddr **out_addr, socklen_t *addr_len, int doma
 			}
 		}
 		else {
-			
-			addr->sin_addr.s_addr = (in_addr_t*)addrc;
+			addr->sin_addr = *(struct in_addr*)addrc;
 		}
 		addr->sin_port = htons(port);
 		

@@ -70,6 +70,8 @@ typedef struct in_addr in_addr_t;
 
 #endif
 
+extern const struct in_addr inaddr_any;
+
 /**
  * 
  * MACROS AND CORRESPONDING FUNCTIONS
