@@ -38,10 +38,10 @@ int main(void) {
 	printf("accepting: %d\n", rval);
 	if(rval) return 1;
 
-	CSOCKET_NTOP(activity.domain, activity.addr, str, sizeof(str));
+	CSOCKET_NTOP(activity.client_socket.domain, activity.client_socket.addr, str, sizeof(str));
 
 	printf("ACTIVITY_IP: %s\n", str);
-	printf("ACTIVITY_LEN: %d\n", activity.addr_len);
+	printf("ACTIVITY_LEN: %d\n", activity.client_socket.addr_len);
 	printf("ACTIVITY_TYPE: %d\n", activity.type);	
 
 	rval = csocket_recvA(&activity, buf, 100, 0);

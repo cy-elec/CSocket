@@ -16,6 +16,7 @@
 int main(void) {
 
 	csocket_t socket = CSOCKET_EMPTY;
+	struct csocket_keepalive ka = CSOCKET_EMPTY;
 	int rval;
 	char str[100];
 	struct timeval timeout = {
@@ -29,18 +30,33 @@ int main(void) {
 
 	CSOCKET_NTOP(socket.domain, socket.mode.addr, str, 100);
 
+	// enable default keep alive
+	printf("Setting keepalive: %d %s\n", csocket_keepalive_create(0, NULL, 0, &ka, &socket), socket.last_err);
+	csocket_keepalive_set(&ka, &socket);
+	printf("Settings:\n\tEnabled: %d\n\tTimeout: %d\n\tMSG: %s\n\tType: %d\n\tTime: %ld\n", socket.ka->enabled, socket.ka->timeout, socket.ka->msg, socket.ka->msg_type, socket.ka->last_sig);
+
+
 	rval = csocket_connectClient(&socket, &timeout);
-	printf("connect[%s--%d]: %d\n", str, ntohs(socket.domain==AF_INET?((struct sockaddr_in*)socket.mode.addr)->sin_port:((struct sockaddr_in6*)socket.mode.addr)->sin6_port), 
-	rval);
+	printf("connect[%s--%d]: %d\n", str, ntohs(socket.domain==AF_INET?((struct sockaddr_in*)socket.mode.addr)->sin_port:((struct sockaddr_in6*)socket.mode.addr)->sin6_port), rval);
 	if(rval) return 1;
 
-	char buf[12] = "hello world";
-	printf("sending: \"%s\"\n", buf);
-	rval = csocket_send(&socket, buf, 12, 0);
-	if(12!=rval) {
+	char buf[] = "halo CSKA%UNIX%1668967786%UNIX%-%HOST%FELIX%HOST%-%USER%fexkr%USER%\0Alpha";
+	rval = csocket_send(&socket, buf, sizeof(buf), 0);
+	if(sizeof(buf)!=rval) {
 		printf("Failed to send data [%d]\n", rval);
 		return 1;
 	}
+	printf("sent[%d]: \"%s\"\n", rval, buf);
+	
+	rval = csocket_recv(&socket, buf, sizeof(buf), 0);
+	if(rval<1) {
+		printf("Failed to receive [%d]\n", rval);
+		return 1;
+	}
+	printf("recv[%d]: '%s'\n", rval, buf);
+
+	if(csocket_keepAlive(&socket))
+		printf("Failed to send KeepAlive Signal\n");
 
 	csocket_close(&socket);
 	printf("closed\n");
