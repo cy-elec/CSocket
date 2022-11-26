@@ -51,12 +51,18 @@ int main(void) {
 	printf("ACTIVITY_LEN: %d\n", activity.client_socket.addr_len);
 	printf("ACTIVITY_TYPE: %d\n", activity.type);
 
+	#ifdef _WIN32
+	Sleep(2000);
+	#else
+	sleep(2);
+	#endif
+
 	rval = csocket_recvA(&activity, buf, 100, 0);
 	if(rval<1) {
 		printf("Failed to receive [%d]\n", rval);
 		return 1;
 	}
-	printf("recv[%d]: %s\n", rval, buf);
+	printf("recv[%d]: '%.100s'\n", rval, buf);
 	
 	#ifdef _WIN32
 	Sleep(2000);

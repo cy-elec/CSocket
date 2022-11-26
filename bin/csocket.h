@@ -133,7 +133,7 @@ struct csocket_keepalive {
 	/**
 	 * keepalive message types:
 	 * 1 - custom message stored in msg with length msg_len
-	 * other values: DEFAULT - "CSCK%UNIX%\0"
+	 * other values: DEFAULT - "CSKA%UNIX%-%HOST%-%USER%\0"
 	 * 
 	 * variables for custom messages:
 	 * - %UNIX% -> current time in unix format
@@ -232,6 +232,10 @@ int csocket_initClientSocket(int domain, int type, int protocol, void *addrc, in
 */
 #pragma region RECV/SEND
 
+static int _isRecvUp(int fd);
+
+static int _isRecvFromUp(int fd, struct sockaddr *addr, socklen_t *addr_len);
+
 static int _hasRecvData(int fd);
 
 static int _hasRecvFromData(int fd, struct sockaddr *addr, socklen_t *addr_len);
@@ -258,9 +262,9 @@ static int _hasRecvDataBuffer(struct csocket_keepalive *ka, int fd);
 
 static int _hasRecvFromDataBuffer(struct csocket_keepalive *ka, int fd, struct sockaddr *addr, socklen_t *addr_len);
 
-static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags, size_t offset);
+static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags);
 
-static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags, size_t offset, struct sockaddr *addr, socklen_t *addr_len);
+static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags, struct sockaddr *addr, socklen_t *addr_len);
 
 static ssize_t _readBuffer(csocket_t *src_socket, void *buf, size_t len, int flags);
 

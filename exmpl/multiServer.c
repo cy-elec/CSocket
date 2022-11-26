@@ -20,9 +20,9 @@ void onActivity(csocket_activity_t act) {
 	// if data, print
 	if(act.type&CSACT_TYPE_READ) {
 		printf("\tReceived: ");
-		char buf, arr[100];
+		char buf, arr[1024];
 		int rval = 0, srval = 0;
-		while(csocket_recvA(&act, &buf, 1, 0), csocket_hasRecvDataA(&act)==1 && rval<100) {
+		while(csocket_recvA(&act, &buf, 1, 0), csocket_hasRecvDataA(&act)==1 && rval<sizeof(arr)) {
 			arr[rval] = buf;
 			rval++;
 			printf("%c", buf);

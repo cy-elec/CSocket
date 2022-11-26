@@ -134,6 +134,67 @@ int csocket_initClientSocket(int domain, int type, int protocol, void *addrc, in
 
 #pragma region RECV/SEND
 
+static int _isRecvUp(int fd) {
+	char buf;
+	int res = 0;
+	// disable block and test recv
+	#ifdef _WIN32
+		{
+			u_long iMode = 1;
+			ioctlsocket(fd, FIONBIO, &iMode);
+			res = (recv(fd, &buf, 1, MSG_PEEK)!=0);
+		}
+	#else
+		fcntl(fd, F_SETFL, O_NONBLOCK);
+		res = (recv(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT)!=0);
+	#endif
+	
+
+	// enable block
+	#ifdef _WIN32
+		{
+			u_long iMode = 0;
+			ioctlsocket(fd, FIONBIO, &iMode);
+		}
+	#else
+		int flg = fcntl(fd, F_GETFL);
+		if(flg!=-1)
+			fcntl(fd, F_SETFL, flg & ~O_NONBLOCK);
+	#endif
+
+	return res;
+}
+
+static int _isRecvFromUp(int fd, struct sockaddr *addr, socklen_t *addr_len) {
+	char buf;
+	int res = 0;
+	// disable block and test recv
+	#ifdef _WIN32
+		{
+			u_long iMode = 1;
+			ioctlsocket(fd, FIONBIO, &iMode);
+			res = (recvfrom(fd, &buf, 1, MSG_PEEK, addr, addr_len)!=0);
+		}
+	#else
+		fcntl(fd, F_SETFL, O_NONBLOCK);
+		res = (recvfrom(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT, addr, addr_len)!=0);
+	#endif
+	
+
+	// enable block
+	#ifdef _WIN32
+		{
+			u_long iMode = 0;
+			ioctlsocket(fd, FIONBIO, &iMode);
+		}
+	#else
+		int flg = fcntl(fd, F_GETFL);
+		if(flg!=-1)
+			fcntl(fd, F_SETFL, flg & ~O_NONBLOCK);
+	#endif
+
+	return res;
+}
 static int _hasRecvData(int fd) {
 	char buf;
 	int res = 0;
@@ -246,21 +307,27 @@ ssize_t csocket_sendto(csocket_t *src_socket, void *buf, size_t len, int flags) 
 
 static int _hasRecvDataBuffer(struct csocket_keepalive *ka, int fd) {
 	if(!ka) return -1;
-	if(_updateBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT, 0)<0) return -1;
+	_updateBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT);
 	if(ka->buffer_usage>0) return 1;
 	return 0;
 }
 
 static int _hasRecvFromDataBuffer(struct csocket_keepalive *ka, int fd, struct sockaddr *addr, socklen_t *addr_len) {
 	if(!ka) return -1;
-	if(_updateFromBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT, 0, addr, addr_len)<0) return -1;
+	_updateFromBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT, addr, addr_len);
 	if(ka->buffer_usage>0) return 1;
 	return 0;
 }
 
 // update internal buffer
-static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags, size_t offset) {
+static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags) {
 	if(!ka || !ka->enabled) return -1;
+
+	if(ka->buffer_usage==ka->buffer_len) {
+		return 0;
+	}
+
+	socklen_t offset = ka->buffer_usage;
 
 	ssize_t res = 0;
 	int lasterr = 0;
@@ -271,14 +338,14 @@ static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags, si
 				u_long iMode = 1;
 				ioctlsocket(fd, FIONBIO, &iMode);
 			}
-			res = recv(fd, ka->buffer+offset, ka->buffer_len-offset, flags&~MSG_DONTWAIT);
+			res = recv(fd, ka->buffer+offset, ka->buffer_len-offset, flags&~MSG_DONTWAIT&~MSG_PEEK);
 			lasterr = errno;
 		}
 	#else
 		if(flags&MSG_DONTWAIT) {
 			fcntl(fd, F_SETFL, O_NONBLOCK);
 		}
-		res = recv(fd, ka->buffer+offset, ka->buffer_len-offset, flags);
+		res = recv(fd, ka->buffer+offset, ka->buffer_len-offset, flags&~MSG_PEEK);
 		lasterr = errno;
 	#endif
 
@@ -298,8 +365,7 @@ static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags, si
 	
 	if(res<=0 && (ka->buffer_usage > 0 || lasterr == EAGAIN || lasterr == EWOULDBLOCK))return 0;
 	if(res<=0 && ka->buffer_usage <= 0) return -1;
-	ka->buffer_usage = res;
-	ka->buffer[res] = 0;
+	ka->buffer_usage = offset+res;
 
 	// search buffer for keepalive and set ka->last_sig
 	size_t length = ka->buffer_usage;
@@ -313,22 +379,21 @@ static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags, si
 
 	// if cropped length is smaller than previous length, call update again with offset of current length
 	if(ka->buffer_usage==ka->buffer_len&&(socklen_t)length<ka->buffer_usage)
-		return _updateBuffer(ka, fd, flags, length);
+		return _updateBuffer(ka, fd, flags);
 
+	if(ka->buffer_usage <= 0) return -1;
 	return 0;
 }
 
 // update internal buffer (from)
-static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags, size_t offset, struct sockaddr *addr, socklen_t *addr_len) {
+static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags, struct sockaddr *addr, socklen_t *addr_len) {
 	if(!ka || !ka->enabled) return -1;
 
-	if(ka->buffer_usage==ka->buffer_len && flags&MSG_PEEK) {
+	if(ka->buffer_usage==ka->buffer_len) {
 		return 0;
 	}
-	if(flags&MSG_PEEK) {
-		flags&=~MSG_PEEK;
-		offset = ka->buffer_usage;
-	}
+
+	socklen_t offset = ka->buffer_usage;
 
 	ssize_t res = 0;
 	int lasterr = 0;
@@ -339,14 +404,14 @@ static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags
 				u_long iMode = 1;
 				ioctlsocket(fd, FIONBIO, &iMode);
 			}
-			res = recvfrom(fd, ka->buffer+offset, ka->buffer_len-offset, flags&~MSG_DONTWAIT, addr, addr_len);
+			res = recvfrom(fd, ka->buffer+offset, ka->buffer_len-offset, flags&~MSG_DONTWAIT&~MSG_PEEK, addr, addr_len);
 			lasterr = errno;
 		}
 	#else
 		if(flags&MSG_DONTWAIT) {
 			fcntl(fd, F_SETFL, O_NONBLOCK);
 		}
-		res = recvfrom(fd, ka->buffer+offset, ka->buffer_len-offset, flags, addr, addr_len);
+		res = recvfrom(fd, ka->buffer+offset, ka->buffer_len-offset, flags&~MSG_PEEK, addr, addr_len);
 		lasterr = errno;
 	#endif
 	
@@ -365,11 +430,10 @@ static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags
 		#endif
 	}
 
-	if(res<=0 && (ka->buffer_usage > 0 || lasterr == EAGAIN || lasterr == EWOULDBLOCK)) return 0;
+	if(res<=0 && (ka->buffer_usage > 0 || lasterr == EAGAIN || lasterr == EWOULDBLOCK))return 0;
 	if(res<=0 && ka->buffer_usage <= 0) return -1;
-	ka->buffer_usage = res;
-	ka->buffer[res] = 0;
-	
+	ka->buffer_usage = offset+res;
+
 	// search buffer for keepalive and set ka->last_sig
 	size_t length = ka->buffer_usage;
 
@@ -382,8 +446,9 @@ static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags
 
 	// if cropped length is smaller than previous length, call update again with offset of current length
 	if(ka->buffer_usage==ka->buffer_len&&(socklen_t)length<ka->buffer_usage)
-		return _updateFromBuffer(ka, fd, flags, length, addr, addr_len);
+		return _updateFromBuffer(ka, fd, flags, addr, addr_len);
 
+	if(ka->buffer_usage <= 0) return -1;
 	return 0;
 }
 
@@ -409,7 +474,7 @@ static ssize_t _readBufferA(csocket_activity_t *activity, void *buf, size_t len,
 	do {
 		csocket_updateA(activity);
 
-		// timeout
+		// timeout 
 		clock_gettime(CLOCK_MONOTONIC, &cs);
 		if((csocket_timeout.tv_sec>0||csocket_timeout.tv_nsec>0)&&((ts.tv_sec == cs.tv_sec && ts.tv_nsec < cs.tv_nsec) || ts.tv_sec < cs.tv_sec)) {
 			break;
@@ -423,7 +488,7 @@ static ssize_t _readBufferA(csocket_activity_t *activity, void *buf, size_t len,
 			break;
 		}
 	}
-	if(_updateBuffer(activity->client_socket.ka, activity->client_socket.fd, flags|MSG_DONTWAIT, 0))
+	if(_updateBuffer(activity->client_socket.ka, activity->client_socket.fd, flags|MSG_DONTWAIT))
 		return -1;
 	
 	if(res<0) return -1;
@@ -434,8 +499,11 @@ static ssize_t _readBufferA(csocket_activity_t *activity, void *buf, size_t len,
 		resolved = activity->client_socket.ka->buffer_usage;
 
 	memcpy(buf, activity->client_socket.ka->buffer, resolved+1);
-	memmove(activity->client_socket.ka->buffer, activity->client_socket.ka->buffer+resolved, activity->client_socket.ka->buffer_usage-resolved);
-	activity->client_socket.ka->buffer_usage-=resolved;
+
+	if(!(flags&MSG_PEEK)) {
+		memmove(activity->client_socket.ka->buffer, activity->client_socket.ka->buffer+resolved, activity->client_socket.ka->buffer_usage-resolved);
+		activity->client_socket.ka->buffer_usage-=resolved;
+	}
 
 	return resolved;
 }
@@ -478,7 +546,7 @@ static ssize_t _readFromBufferA(csocket_activity_t *activity, void *buf, size_t 
 			break;
 		}
 	}
-	if(_updateFromBuffer(activity->client_socket.ka, activity->client_socket.fd, flags|MSG_DONTWAIT, 0, activity->client_socket.addr, &activity->client_socket.addr_len))
+	if(_updateFromBuffer(activity->client_socket.ka, activity->client_socket.fd, flags|MSG_DONTWAIT, activity->client_socket.addr, &activity->client_socket.addr_len))
 		return -1;
 	
 	if(res<0) return -1;
@@ -489,8 +557,11 @@ static ssize_t _readFromBufferA(csocket_activity_t *activity, void *buf, size_t 
 		resolved = activity->client_socket.ka->buffer_usage;
 
 	memcpy(buf, activity->client_socket.ka->buffer, resolved+1);
-	memmove(activity->client_socket.ka->buffer, activity->client_socket.ka->buffer+resolved, activity->client_socket.ka->buffer_usage-resolved);
-	activity->client_socket.ka->buffer_usage-=resolved;
+	
+	if(!(flags&MSG_PEEK)) {
+		memmove(activity->client_socket.ka->buffer, activity->client_socket.ka->buffer+resolved, activity->client_socket.ka->buffer_usage-resolved);
+		activity->client_socket.ka->buffer_usage-=resolved;
+	}
 
 	return resolved;
 }
@@ -500,7 +571,7 @@ static int _searchKeyKeepAlive(const char *query, size_t qlength, const char *ms
 	if(strncmp(query, msg+*msg_offset, qlength)==0&&strncmp(query, buffer+*buffer_offset, qlength)==0) {
 		socklen_t starting_at = *buffer_offset;
 		socklen_t ending_at = 0;
-		for(socklen_t o=starting_at+qlength; o<=buffer_usage; ++o) {
+		for(socklen_t o=starting_at+qlength; o<buffer_usage; ++o) {
 			if(strncmp(query, buffer+o, qlength)==0) {
 				ending_at = o+qlength-1;
 				break;
@@ -526,23 +597,32 @@ static int _findKeepAliveMsg(char *msg, size_t msg_len, char *buffer, socklen_t 
 
 	int foundKA = 0;
 
-	for(socklen_t buffer_offset = 0; buffer_offset <= *buffer_usage; ++buffer_offset) {
-		if(msg_offset==msg_len) {
-			memcpy(params, buffer+buffer_offset-var_len, var_len);
-			*params_usage = var_len-1;
-			params[var_len] = 0;
-			memmove(buffer+buffer_offset-var_len, buffer+buffer_offset, var_len);
-			*buffer_usage-=var_len;
-			msg_offset = 0;
-			foundKA = 1;
-		}
-		if(*(msg+msg_offset)==*(buffer+buffer_offset)) {
-			// search keywords
 
-			if(_searchKeyKeepAlive("%UNIX%", 6, msg, &msg_offset, buffer, &buffer_offset, *buffer_usage, &var_len) +
-			_searchKeyKeepAlive("%HOST%", 6, msg, &msg_offset, buffer, &buffer_offset, *buffer_usage, &var_len) +
-			_searchKeyKeepAlive("%USER%", 6, msg, &msg_offset, buffer, &buffer_offset, *buffer_usage, &var_len) <= -3) {
-				++msg_offset;
+	for(socklen_t buffer_offset = 0; buffer_offset < *buffer_usage; ++buffer_offset) {
+		
+		if(*(msg+msg_offset)==*(buffer+buffer_offset)) {
+			
+			if(msg_offset==msg_len-1) {
+				
+				memcpy(params, buffer+(buffer_offset)-(var_len-1), var_len);
+				
+				*params_usage = var_len;
+				params[var_len+1] = 0;
+				
+				memmove(buffer+(buffer_offset)-(var_len-1), buffer+(buffer_offset+1), *buffer_usage-(buffer_offset));
+				*buffer_usage-=var_len;
+
+				msg_offset = 0;
+				buffer_offset = (buffer_offset)-(var_len-2);
+				foundKA = 1;
+			}
+			else {
+				// search keywords
+				if(_searchKeyKeepAlive("%UNIX%", 6, msg, &msg_offset, buffer, &buffer_offset, *buffer_usage, &var_len) +
+				_searchKeyKeepAlive("%HOST%", 6, msg, &msg_offset, buffer, &buffer_offset, *buffer_usage, &var_len) +
+				_searchKeyKeepAlive("%USER%", 6, msg, &msg_offset, buffer, &buffer_offset, *buffer_usage, &var_len) <= -3) {
+					++msg_offset;
+				}
 			}
 		}
 		else {
@@ -580,9 +660,9 @@ void csocket_updateA(csocket_activity_t *activity) {
 
 	if(FD_ISSET(activity->client_socket.fd, &wr))
 		activity->type |= CSACT_TYPE_WRITE;
-	if(FD_ISSET(activity->client_socket.fd, &rd))
+	if(FD_ISSET(activity->client_socket.fd, &rd) || (activity->client_socket.ka && activity->client_socket.ka->buffer_usage>0))
 		activity->type |= CSACT_TYPE_READ;
-	else if(csocket_hasRecvDataA(activity)<=0)
+	else if(csocket_hasRecvDataA(activity)==0)
 		activity->type &= ~CSACT_TYPE_READ;
 
 	if(FD_ISSET(activity->client_socket.fd, &ex))
@@ -611,9 +691,9 @@ void csocket_updateFromA(csocket_activity_t *activity) {
 
 	if(FD_ISSET(activity->client_socket.fd, &wr))
 		activity->type |= CSACT_TYPE_WRITE;
-	if(FD_ISSET(activity->client_socket.fd, &rd))
+	if(FD_ISSET(activity->client_socket.fd, &rd) || (activity->client_socket.ka && activity->client_socket.ka->buffer_usage>0))
 		activity->type |= CSACT_TYPE_READ;
-	else if(csocket_hasRecvFromDataA(activity)<=0)
+	else if(csocket_hasRecvFromDataA(activity)==0)
 		activity->type &= ~CSACT_TYPE_READ;
 
 	if(FD_ISSET(activity->client_socket.fd, &ex))
@@ -774,7 +854,7 @@ int csocket_keepalive_create(int timeout, char *msg, size_t msg_len, struct csoc
 		strcpy(src_socket->last_err, "kacreate malloc3");
 		return -1;
 	}
-	memmove(ka->msg, msg_len>0?msg:CSKA_DEFAULTMSG, ka->msg_len);
+	memcpy(ka->msg, msg_len>0?msg:CSKA_DEFAULTMSG, ka->msg_len);
 
 	ka->enabled = 1;
 	
@@ -801,7 +881,7 @@ int csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, struct csoc
 		strcpy(src_socket->last_err, "kamodify malloc2");
 		return -1;
 	}
-	memmove(ka->msg, msg_len>0?msg:CSKA_DEFAULTMSG, ka->msg_len);
+	memcpy(ka->msg, msg_len>0?msg:CSKA_DEFAULTMSG, ka->msg_len);
 
 	ka->enabled = 1;
 
@@ -845,7 +925,7 @@ int csocket_keepalive_copy(struct csocket_keepalive **dst, const struct csocket_
 		(*dst)->msg = malloc((*dst)->msg_len);
 		if(!(*dst)->msg)
 			return -1;
-		memmove((*dst)->msg, src->msg, (*dst)->msg_len);
+		memcpy((*dst)->msg, src->msg, (*dst)->msg_len);
 	}
 	(*dst)->msg_type = src->msg_type;
 	(*dst)->last_sig = time(NULL);
@@ -854,18 +934,23 @@ int csocket_keepalive_copy(struct csocket_keepalive **dst, const struct csocket_
 }
 
 int csocket_isAlive(struct csocket_keepalive *ka) {
-	if(!ka) return -1;
+	if(!ka || !ka->enabled) return -1;
+	if(ka->timeout == 0) return 1;
 
-	return -!(ka->last_sig>(time(NULL)-ka->timeout));
+	return (ka->last_sig>(time(NULL)-ka->timeout));
 }
 
 int csocket_keepAlive(csocket_t *src_socket) {
 	if(!src_socket || src_socket->mode.sc!=2 || !src_socket->ka) return -1;
 	
-	if(!src_socket->ka->enabled || src_socket->ka->last_sig>time(NULL)-src_socket->ka->timeout) {
-		strcpy(src_socket->last_err, "keepAlive unavailable");
+	if(!src_socket->ka->enabled) {
+		strcpy(src_socket->last_err, "keepAlive unavailable: not enabled");
 		return -1;
 	}
+	if(src_socket->ka->last_sig>time(NULL)-src_socket->ka->timeout+1) {
+		strcpy(src_socket->last_err, "keepAlive unavailable: timeout");
+		return 0;
+	}	
 
 	size_t toSendSize = src_socket->ka->msg_len;
 	char *toSend = malloc(toSendSize);
@@ -984,8 +1069,10 @@ int csocket_updateKeepAlive(struct csocket_keepalive *ka, int fd) {
 	if(!ka) return -1;
 	if(!ka->enabled) return 0;
 
-	if(_updateBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT, 0)<0) return -1;
-
+	if(_updateBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT)<0) {
+		return -1;
+	}
+	
 	return 0;
 }
 
@@ -993,8 +1080,9 @@ int csocket_updateKeepAliveFrom(struct csocket_keepalive *ka, int fd, csocket_ad
 	if(!ka||!dst_addr) return -1;
 	if(!ka->enabled) return 0;
 
-	if(_updateFromBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT, 0, dst_addr->addr, &dst_addr->addr_len)<0) return -1;
-
+	if(_updateFromBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT, dst_addr->addr, &dst_addr->addr_len)<0)
+		return -1;
+	
 	return 0;
 }
 
@@ -1233,6 +1321,8 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			activity.type |= CSACT_TYPE_WRITE;
 		if(FD_ISSET(activity.client_socket.fd, &rd2))
 			activity.type |= CSACT_TYPE_READ;
+		if((!csocket_hasRecvDataA(&activity) && !csocket_hasRecvFromDataA(&activity)))
+			activity.type &= ~CSACT_TYPE_READ;
 		if(FD_ISSET(activity.client_socket.fd, &ex2))
 			activity.type |= CSACT_TYPE_EXT;
 
@@ -1244,7 +1334,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 				break;
 			}
 		}
-		
+
 		// trigger action
 		if(handler->onActivity)
 			handler->onActivity(activity);
@@ -1254,23 +1344,41 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 	for(int i=0; i<handler->maxClients; ++i) {
 		// client
 		struct csocket_clients client = handler->client_sockets[i]; 
-		if(FD_ISSET(client.fd, &rd)) {
+
+		int fdset = FD_ISSET(client.fd, &rd);
+
+		csocket_updateKeepAlive(client.ka, client.fd);
+		csocket_addr_t kaadr;
+		kaadr.addr = client.addr;
+		kaadr.addr_len = client.addr_len;
+		csocket_updateKeepAliveFrom(client.ka, client.fd, &kaadr);
+
+		fdset |= _hasRecvDataBuffer(client.ka, client.fd)==1||_hasRecvFromDataBuffer(client.ka, client.fd, client.addr, &client.addr_len)==1;
+
+		if(fdset||!csocket_isAlive(client.ka)) {
+
+			/**
+			 * 
+			 * FORM ACTIVITY
+			 * 
+			**/
+			csocket_activity_t activity = CSOCKET_EMPTY;
+			activity.client_socket.fd = client.fd;
+			activity.client_socket.domain = client.domain;
+			activity.client_socket.addr = client.addr;
+			activity.client_socket.addr_len = client.addr_len;
+
+			// keepalive
+			activity.client_socket.ka = client.ka;
+
+			// set time
+			activity.time = time(NULL);
+			activity.update_time = activity.time;
+				
 			// no data: disconnected
-			if(!_hasRecvData(client.fd)) {
-				/**
-				 * 
-				 * FORM ACTIVITY
-				 * 
-				**/
-				csocket_activity_t activity = CSOCKET_EMPTY;
-				activity.client_socket.fd = client.fd;
-				activity.client_socket.domain = client.domain;
-				activity.client_socket.addr = client.addr;
-				activity.client_socket.addr_len = client.addr_len;
+			if(csocket_isAlive(activity.client_socket.ka)==0 || (_isRecvUp(activity.client_socket.fd)==0&&_isRecvFromUp(activity.client_socket.fd, activity.client_socket.addr, &activity.client_socket.addr_len)==0)) {
+
 				activity.type = CSACT_TYPE_DISCONN;
-				// set time
-				activity.time = time(NULL);
-				activity.update_time = activity.time;
 				
 				shutdown(client.fd, SHUT_RDWR);
 				
@@ -1289,46 +1397,28 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 				}
 			}
 			else {
-				/**
-				 * 
-				 * FORM ACTIVITY
-				 * 
-				**/
-				csocket_activity_t activity = CSOCKET_EMPTY;
-				activity.client_socket.fd = client.fd;
-				activity.client_socket.domain = client.domain;
-				activity.client_socket.addr = client.addr;
-				activity.client_socket.addr_len = client.addr_len;
-				// set time
-				activity.time = time(NULL);
-				activity.update_time = activity.time;
-
-				// keepalive
-				activity.client_socket.ka = handler->src_socket->ka;
 
 				// poll action
-				fd_set wr2, rd2, ex2;
+				fd_set wr2, ex2;
 				FD_ZERO(&wr2);
-				FD_ZERO(&rd2);
 				FD_ZERO(&ex2);
 				FD_SET(activity.client_socket.fd, &wr2);
-				FD_SET(activity.client_socket.fd, &rd2);
 				FD_SET(activity.client_socket.fd, &ex2);
 				struct timeval TIMEVAL_ZERO = {0};
-				int ret = select(activity.client_socket.fd+1, &rd2, &wr2, &ex2, &TIMEVAL_ZERO);
+				int ret = select(activity.client_socket.fd+1, NULL, &wr2, &ex2, &TIMEVAL_ZERO);
 				if(ret < 0) {
 					strcpy(handler->src_socket->last_err, "multiServer socketchange");
 					return -1;
 				}
 				if(FD_ISSET(activity.client_socket.fd, &wr2))
 					activity.type |= CSACT_TYPE_WRITE;
-				if(FD_ISSET(activity.client_socket.fd, &rd2))
+				if(fdset)
 					activity.type |= CSACT_TYPE_READ;
 				if(FD_ISSET(activity.client_socket.fd, &ex2))
 					activity.type |= CSACT_TYPE_EXT;
 
-				// trigger action
-				if(handler->onActivity)
+				// trigger action on data
+				if((csocket_hasRecvDataA(&activity)==1 || csocket_hasRecvFromDataA(&activity)==1) && handler->onActivity)
 					handler->onActivity(activity);
 			}
 		}
