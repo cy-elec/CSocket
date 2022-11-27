@@ -868,6 +868,7 @@ int csocket_keepalive_copy(csocket_keepalive_t **dst, const csocket_keepalive_t 
 	}
 	(*dst)->msg_type = src->msg_type;
 	(*dst)->last_sig = time(NULL);
+	(*dst)->onActivity = src->onActivity;
 
 	return 0;
 }
