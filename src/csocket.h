@@ -290,7 +290,7 @@ void csocket_updateA(csocket_activity_t *activity);
 
 void csocket_updateFromA(csocket_activity_t *activity);
 
-void csocket_printActivity(int fd, csocket_activity_t *activity);
+void csocket_printActivity(FILE *fp, csocket_activity_t *activity);
 
 int csocket_hasRecvDataA(csocket_activity_t *activity);
 
@@ -336,7 +336,7 @@ int csocket_updateKeepAlive(struct csocket_keepalive *ka, int fd);
 
 int csocket_updateKeepAliveFrom(struct csocket_keepalive *ka, int fd, csocket_addr_t *dst_addr);
 
-void csocket_printKeepAlive(int fd, csocket_keepalive_t *ka);
+void csocket_printKeepAlive(FILE *fp, csocket_keepalive_t *ka);
 
 #pragma endregion
 /*

@@ -16,7 +16,7 @@
 
 
 void onKeepAlive(csocket_keepalive_t *ka) {
-		csocket_printKeepAlive(fileno(stdout), ka);
+		csocket_printKeepAlive(stdout, ka);
 		char resolvedparam[1024];
 		size_t size = sizeof resolvedparam - 1;
 		csocket_getKeepAliveVariable(resolvedparam, &size, "%UNIX%", ka);
@@ -30,7 +30,7 @@ void onKeepAlive(csocket_keepalive_t *ka) {
 }
 
 void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
-	csocket_printActivity(fileno(stdout), &act);
+	csocket_printActivity(stdout, &act);
 	// if data, print
 	if(act.type&CSACT_TYPE_READ) {
 		printf("\tReceived: ");

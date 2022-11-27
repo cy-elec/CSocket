@@ -15,7 +15,7 @@
 
 
 void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
-	csocket_printActivity(fileno(stdout), &act);
+	csocket_printActivity(stdout, &act);
 	// if data, print
 	if(act.type&CSACT_TYPE_WRITE) {
 		char buf[] = "HELLOW SERVER";

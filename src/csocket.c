@@ -643,10 +643,7 @@ void csocket_updateFromA(csocket_activity_t *activity) {
 		activity->type |= CSACT_TYPE_EXT;
 }
 
-void csocket_printActivity(int fd, csocket_activity_t *activity) {
-	int fd2 = dup(fd);
-	if(!activity) return;
-	FILE *fp = fdopen(fd2, "w");
+void csocket_printActivity(FILE *fp, csocket_activity_t *activity) {
 	if(!fp) return;
 
 	char addrs[40];
@@ -656,8 +653,6 @@ void csocket_printActivity(int fd, csocket_activity_t *activity) {
 	fprintf(fp, "\tLast update: %.24s\n", ctime(&activity->update_time));
 	fprintf(fp, "\tType: %s%s%s%s%s%s\n", activity->type&CSACT_TYPE_CONN?"CONN ":"", activity->type&CSACT_TYPE_DISCONN?"DISCONN ":"", activity->type&CSACT_TYPE_READ?"READ ":"", activity->type&CSACT_TYPE_WRITE?"WRITE ":"", activity->type&CSACT_TYPE_EXT?"EXT ":"", activity->type&CSACT_TYPE_DECLINED?"DECLINED ":"");
 	fprintf(fp, "\t\n");
-
-	fclose(fp);
 }
 
 int csocket_hasRecvDataA(csocket_activity_t *activity) {
@@ -1029,10 +1024,7 @@ int csocket_updateKeepAliveFrom(csocket_keepalive_t *ka, int fd, csocket_addr_t 
 	return 0;
 }
 
-void csocket_printKeepAlive(int fd, csocket_keepalive_t *ka) {
-	int fd2 = dup(fd);
-	if(!ka) return;
-	FILE *fp = fdopen(fd2, "w");
+void csocket_printKeepAlive(FILE *fp, csocket_keepalive_t *ka) {
 	if(!fp) return;
 
 	char addrs[40];
@@ -1041,8 +1033,6 @@ void csocket_printKeepAlive(int fd, csocket_keepalive_t *ka) {
 	fprintf(fp, "[%.24s] >> %s", ctime(&ka->last_sig), addrs);
 	fprintf(fp, "\tTimeout: %d[s]\n\tType: KEEPALIVE\n\tHandlerEnabled: %d\n", ka->timeout, ka->onActivity!=0);
 	fprintf(fp, "\t\n");
-
-	fclose(fp);
 }
 
 #pragma endregion
