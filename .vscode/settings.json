@@ -2,6 +2,7 @@
 	"files.associations": {
 		"cparser.h": "c",
 		"select.h": "c",
-		"socket.h": "c"
+		"socket.h": "c",
+		"csocket.h": "c"
 	}
 }
