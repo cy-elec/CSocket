@@ -711,10 +711,7 @@ csocket_activity_t * csocket_sockToAct(csocket_t *src_socket) {
 	activity->client_socket.domain = src_socket->domain;
 	activity->client_socket.addr = src_socket->mode.addr;
 	activity->client_socket.addr_len = src_socket->mode.addr_len;
-	if(csocket_keepalive_copy(&activity->client_socket.ka, src_socket->ka)) {
-		csocket_freeActivity(activity);	
-		return NULL;
-	}
+	activity->client_socket.ka = src_socket->ka;
 	csocket_updateA(activity);
 
 	return activity; 
@@ -733,10 +730,7 @@ csocket_activity_t * csocket_sockToActA(csocket_t *src_socket, csocket_addr_t *d
 	activity->client_socket.domain = src_socket->domain;
 	activity->client_socket.addr = dst_addr->addr;
 	activity->client_socket.addr_len = dst_addr->addr_len;
-	if(csocket_keepalive_copy(&activity->client_socket.ka, src_socket->ka)) {
-		csocket_freeActivity(activity);	
-		return NULL;
-	}
+	activity->client_socket.ka = src_socket->ka;
 	csocket_updateA(activity);
 
 	return activity; 
@@ -1314,7 +1308,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			activity.time = time(NULL);
 			activity.update_time = activity.time;
 				
-			// TODO disconnect
+			// disconnect
 			// DGRAMs allow 0 width data -> recv = 0
 			// options: 1) manual shutdown by user 2) timeout
 
