@@ -15,6 +15,21 @@
 #include "csocket.h"
 
 
+void onKeepAlive(csocket_keepalive_t *ka) {
+		csocket_printKeepAlive(fileno(stdout), ka);
+		char resolvedparam[11];
+		size_t size = sizeof resolvedparam - 1;
+		csocket_getKeepAliveVariable(resolvedparam, &size, "%UNIX%", ka);
+		resolvedparam[10] = 0;
+		printf("\tResolved unix[%ld]: %.*s\n", size, (int)size, resolvedparam);
+		csocket_getKeepAliveVariable(resolvedparam, &size, "%HOST%", ka);
+		resolvedparam[10] = 0;
+		printf("\tResolved host[%ld]: %.*s\n", size, (int)size, resolvedparam);
+		csocket_getKeepAliveVariable(resolvedparam, &size, "%USER%", ka);
+		resolvedparam[10] = 0;
+		printf("\tResolved user[%ld]: %.*s\n\n", size, (int)size, resolvedparam);
+}
+
 void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
 	csocket_printActivity(fileno(stdout), &act);
 	// if data, print
@@ -70,6 +85,7 @@ int main(void) {
 	printf("Setting keepalive: %d %s\n", csocket_keepalive_create(0, NULL, 0, &ka, &socket), socket.last_err);
 	csocket_keepalive_set(&ka, &socket);
 	printf("Settings:\n\tEnabled: %d\n\tTimeout: %d\n\tMSG: %s\n\tType: %d\n\tTime: %ld\n", socket.ka->enabled, socket.ka->timeout, socket.ka->msg, socket.ka->msg_type, socket.ka->last_sig);
+	ka.onActivity = onKeepAlive;
 
 
 	rval = csocket_bindServer(&socket);

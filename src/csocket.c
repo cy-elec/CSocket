@@ -868,6 +868,11 @@ int csocket_keepalive_copy(csocket_keepalive_t **dst, const csocket_keepalive_t 
 	(*dst)->last_sig = time(NULL);
 	(*dst)->onActivity = src->onActivity;
 
+	(*dst)->address.domain = src->address.domain;
+	(*dst)->address.addr = src->address.addr;
+	(*dst)->address.addr_len = src->address.addr_len;
+
+
 	return 0;
 }
 
@@ -1232,9 +1237,6 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			strcpy(handler->src_socket->last_err, "multiServer calloc");
 			return -1;
 		}
-
-		client.ka->address.addr = client.addr;
-		client.ka->address.addr_len = client.addr_len;
 	
 		// accept
 		if((server.client_fd = accept(server.server_fd, client.addr, &client.addr_len)) < 0 ) {
@@ -1257,6 +1259,11 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			client.domain = AF_INET6;
 		else
 			client.domain = -1;
+
+		client.ka->address.domain = client.domain;
+		client.ka->address.addr = client.addr;
+		client.ka->address.addr_len = client.addr_len;
+	
 		
 		// set activity
 		csocket_activity_t activity = CSOCKET_EMPTY;
