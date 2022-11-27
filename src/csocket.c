@@ -437,7 +437,7 @@ static ssize_t _readBufferA(csocket_activity_t *activity, void *buf, size_t len,
 	if((socklen_t)len>activity->client_socket.ka->buffer_usage)
 		resolved = activity->client_socket.ka->buffer_usage;
 
-	memcpy(buf, activity->client_socket.ka->buffer, resolved+1);
+	memcpy(buf, activity->client_socket.ka->buffer, resolved);
 
 	if(!(flags&MSG_PEEK)) {
 		memmove(activity->client_socket.ka->buffer, activity->client_socket.ka->buffer+resolved, activity->client_socket.ka->buffer_usage-resolved);

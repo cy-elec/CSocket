@@ -22,7 +22,8 @@ void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
 		printf("\tReceived: ");
 		char buf, arr[1024];
 		int rval = 0, srval = 0;
-		while(csocket_recvA(&act, &buf, 1, 0), csocket_hasRecvDataA(&act)==1 && rval<sizeof(arr)) {
+		while(csocket_hasRecvDataA(&act)==1 && rval<sizeof(arr)) {
+			csocket_recvA(&act, &buf, 1, 0);
 			arr[rval] = buf;
 			rval++;
 			printf("%c", buf);
@@ -38,8 +39,6 @@ void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
 			printf("\tFailed to send [%d]\n\n", srval);
 		else
 			printf("\tsent[%d]: '%s'\n\n", rval, arr);
-		
-		csocket_shutdownClient(handler, &act.client_socket);
 	}
 }
 

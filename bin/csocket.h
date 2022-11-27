@@ -114,8 +114,8 @@ struct csocket_client {
 	int sc;
 };
 
-// default timeout of 5 min (timeout in seconds)
-#define CSKA_TIMEOUT 300
+// default timeout of 2 min (timeout in seconds)
+#define CSKA_TIMEOUT 120
 #define CSKA_DEFAULTMSG "CSKA%UNIX%-%HOST%-%USER%\0"
 #define CSKA_DEFAULTMSGLEN 25
 
