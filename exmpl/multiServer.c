@@ -17,16 +17,13 @@
 
 void onKeepAlive(csocket_keepalive_t *ka) {
 		csocket_printKeepAlive(fileno(stdout), ka);
-		char resolvedparam[11];
+		char resolvedparam[1024];
 		size_t size = sizeof resolvedparam - 1;
 		csocket_getKeepAliveVariable(resolvedparam, &size, "%UNIX%", ka);
-		resolvedparam[10] = 0;
 		printf("\tResolved unix[%ld]: %.*s\n", size, (int)size, resolvedparam);
 		csocket_getKeepAliveVariable(resolvedparam, &size, "%HOST%", ka);
-		resolvedparam[10] = 0;
 		printf("\tResolved host[%ld]: %.*s\n", size, (int)size, resolvedparam);
 		csocket_getKeepAliveVariable(resolvedparam, &size, "%USER%", ka);
-		resolvedparam[10] = 0;
 		printf("\tResolved user[%ld]: %.*s\n\n", size, (int)size, resolvedparam);
 }
 
