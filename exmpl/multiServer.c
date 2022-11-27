@@ -33,7 +33,7 @@ void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
 		size_t size = sizeof resolvedparam - 1;
 		csocket_getKeepAliveVariable(resolvedparam, &size, "%HOST%", act.client_socket.ka);
 		resolvedparam[10] = 0;
-		printf("\t\n\tResolved[%ld]: %s\n", size, resolvedparam);
+		printf("\t\n\tResolved[%ld]: %.*s\n", size, (int)size, resolvedparam);
 		srval = csocket_sendA(&act, arr, rval, 0);
 		if(srval!=rval)
 			printf("\tFailed to send [%d]\n\n", srval);

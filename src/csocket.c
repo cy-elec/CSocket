@@ -315,6 +315,7 @@ static ssize_t _updateBuffer(csocket_keepalive_t *ka, int fd, int flags) {
 	*/
 	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage)) {
 		ka->last_sig = time(NULL);
+		printf("activity: %d\n", ka->onActivity);
 		if(ka->onActivity) ka->onActivity(ka);
 	}
 
@@ -384,6 +385,7 @@ static ssize_t _updateFromBuffer(csocket_keepalive_t *ka, int fd, int flags, str
 	*/
 	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage)) {
 		ka->last_sig = time(NULL);
+		printf("activity: %d\n", ka->onActivity);
 		if(ka->onActivity) ka->onActivity(ka);
 	}
 
