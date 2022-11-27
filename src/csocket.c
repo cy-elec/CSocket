@@ -1024,6 +1024,22 @@ int csocket_updateKeepAliveFrom(csocket_keepalive_t *ka, int fd, csocket_addr_t 
 	return 0;
 }
 
+void csocket_printKeepAlive(int fd, csocket_keepalive_t *ka) {
+	int fd2 = dup(fd);
+	if(!ka) return;
+	FILE *fp = fdopen(fd2, "w");
+	if(!fp) return;
+
+	char addrs[40];
+	CSOCKET_NTOP(ka->address.domain, ka->address.addr, addrs, 40);
+
+	fprintf(fp, "[%.24s] >> %s", ctime(&ka->last_sig), addrs);
+	fprintf(fp, "\tTimeout: %d[s]\n\tType: KEEPALIVE\n\tHandlerEnabled: %d\n", ka->timeout, ka->onActivity!=0);
+	fprintf(fp, "\t\n");
+
+	fclose(fp);
+}
+
 #pragma endregion
 
 #pragma region SERVER
@@ -1100,6 +1116,12 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 		activity->client_socket.domain = -1;
 	activity->type = CSACT_TYPE_CONN;
 	activity->client_socket.fd = server.client_fd;
+
+	if(activity->client_socket.ka) {
+		activity->client_socket.ka->address.domain = activity->client_socket.domain;
+		activity->client_socket.ka->address.addr = activity->client_socket.addr;
+		activity->client_socket.ka->address.addr_len = activity->client_socket.addr_len;
+	}
 
 	// set time
 	activity->time = time(NULL);
@@ -1210,6 +1232,9 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			strcpy(handler->src_socket->last_err, "multiServer calloc");
 			return -1;
 		}
+
+		client.ka->address.addr = client.addr;
+		client.ka->address.addr_len = client.addr_len;
 	
 		// accept
 		if((server.client_fd = accept(server.server_fd, client.addr, &client.addr_len)) < 0 ) {
@@ -1287,6 +1312,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 
 		csocket_updateKeepAlive(client.ka, client.fd);
 		csocket_addr_t kaadr;
+		kaadr.domain = client.domain;
 		kaadr.addr = client.addr;
 		kaadr.addr_len = client.addr_len;
 		csocket_updateKeepAliveFrom(client.ka, client.fd, &kaadr);

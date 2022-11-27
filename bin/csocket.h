@@ -87,6 +87,7 @@ struct csocket_mode {
 };
 
 typedef struct csocket_addr {
+	int domain;
 	struct sockaddr *addr;
 	socklen_t addr_len;
 } csocket_addr_t;
@@ -148,6 +149,7 @@ typedef struct csocket_keepalive {
 	time_t last_sig;
 	// handler function
 	void (*onActivity)(struct csocket_keepalive *);
+	csocket_addr_t address;
 } csocket_keepalive_t;
 
 typedef struct csocket {
@@ -333,6 +335,8 @@ int csocket_getKeepAliveVariable(char *dst, size_t *dst_len, char *query, struct
 int csocket_updateKeepAlive(struct csocket_keepalive *ka, int fd);
 
 int csocket_updateKeepAliveFrom(struct csocket_keepalive *ka, int fd, csocket_addr_t *dst_addr);
+
+void csocket_printKeepAlive(int fd, csocket_keepalive_t *ka);
 
 #pragma endregion
 /*
