@@ -313,8 +313,10 @@ static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags) {
 		RESOLVE ka->msg / CSKA_DEFAULTMSG
 		SEARCH FOR RESOLVED QUERY and remove from buffer + update ka->last_sig
 	*/
-	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage))
+	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage)) {
 		ka->last_sig = time(NULL);
+		if(ka->onActivity) ka->onActivity(ka);
+	}
 
 	// if cropped length is smaller than previous length, call update again with offset of current length
 	if(ka->buffer_usage==ka->buffer_len&&(socklen_t)length<ka->buffer_usage)
@@ -380,8 +382,10 @@ static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags
 		RESOLVE ka->msg / CSKA_DEFAULTMSG
 		SEARCH FOR RESOLVED QUERY and remove from buffer + update ka->last_sig
 	*/
-	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage))
+	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage)) {
 		ka->last_sig = time(NULL);
+		if(ka->onActivity) ka->onActivity(ka);
+	}
 
 	// if cropped length is smaller than previous length, call update again with offset of current length
 	if(ka->buffer_usage==ka->buffer_len&&(socklen_t)length<ka->buffer_usage)

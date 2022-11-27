@@ -146,6 +146,8 @@ struct csocket_keepalive {
 	socklen_t params_len;
 	socklen_t params_usage;
 	time_t last_sig;
+	// handler function
+	void (*onActivity)(struct csocket_keepalive *);
 };
 
 typedef struct csocket {
