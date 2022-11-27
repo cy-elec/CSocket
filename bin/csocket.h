@@ -114,8 +114,8 @@ struct csocket_client {
 	int sc;
 };
 
-// default timeout of 30 min (timeout in seconds)
-#define CSKA_TIMEOUT 1800
+// default timeout of 5 min (timeout in seconds)
+#define CSKA_TIMEOUT 300
 #define CSKA_DEFAULTMSG "CSKA%UNIX%-%HOST%-%USER%\0"
 #define CSKA_DEFAULTMSGLEN 25
 
@@ -174,6 +174,8 @@ struct csocket_clients {
 	socklen_t addr_len;
 	// keepalive
 	struct csocket_keepalive *ka;
+	// manual shutdown
+	char shutdown;
 };
 
 /*
@@ -203,7 +205,7 @@ typedef struct csocket_multiHandler {
 	// socket
 	csocket_t *src_socket;
 	// handler function
-	void (*onActivity)(csocket_activity_t);
+	void (*onActivity)(struct csocket_multiHandler *, csocket_activity_t);
 	// client stash
 	int maxClients;
 	struct csocket_clients *client_sockets;
@@ -231,10 +233,6 @@ int csocket_initClientSocket(int domain, int type, int protocol, void *addrc, in
 	RECV/SEND
 */
 #pragma region RECV/SEND
-
-static int _isRecvUp(int fd);
-
-static int _isRecvFromUp(int fd, struct sockaddr *addr, socklen_t *addr_len);
 
 static int _hasRecvData(int fd);
 
@@ -354,9 +352,11 @@ int csocket_listen(csocket_t *src_socket, int maxQueue);
 		MULTI SERVER
 	*/
 	// handling all clients - should be called in a while(true)
-	int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_activity_t), csocket_multiHandler_t *handler);
+	int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_multiHandler_t *, csocket_activity_t), csocket_multiHandler_t *handler);
 
 	int csocket_multiServer(csocket_multiHandler_t *handler);
+
+int csocket_shutdownClient(csocket_multiHandler_t *handler, struct csocket_clients *client);
 
 #pragma endregion
 /*

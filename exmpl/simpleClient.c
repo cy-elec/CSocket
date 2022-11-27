@@ -63,9 +63,6 @@ int main(void) {
 	}
 	printf("recv[%d]: '%s'\n", rval, buf);
 
-	
-	while(!csocket_keepAlive(&socket));
-
 	csocket_close(&socket);
 	printf("closed\n");
 

@@ -134,67 +134,6 @@ int csocket_initClientSocket(int domain, int type, int protocol, void *addrc, in
 
 #pragma region RECV/SEND
 
-static int _isRecvUp(int fd) {
-	char buf;
-	int res = 0;
-	// disable block and test recv
-	#ifdef _WIN32
-		{
-			u_long iMode = 1;
-			ioctlsocket(fd, FIONBIO, &iMode);
-			res = (recv(fd, &buf, 1, MSG_PEEK)!=0);
-		}
-	#else
-		fcntl(fd, F_SETFL, O_NONBLOCK);
-		res = (recv(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT)!=0);
-	#endif
-	
-
-	// enable block
-	#ifdef _WIN32
-		{
-			u_long iMode = 0;
-			ioctlsocket(fd, FIONBIO, &iMode);
-		}
-	#else
-		int flg = fcntl(fd, F_GETFL);
-		if(flg!=-1)
-			fcntl(fd, F_SETFL, flg & ~O_NONBLOCK);
-	#endif
-
-	return res;
-}
-
-static int _isRecvFromUp(int fd, struct sockaddr *addr, socklen_t *addr_len) {
-	char buf;
-	int res = 0;
-	// disable block and test recv
-	#ifdef _WIN32
-		{
-			u_long iMode = 1;
-			ioctlsocket(fd, FIONBIO, &iMode);
-			res = (recvfrom(fd, &buf, 1, MSG_PEEK, addr, addr_len)!=0);
-		}
-	#else
-		fcntl(fd, F_SETFL, O_NONBLOCK);
-		res = (recvfrom(fd, &buf, 1, MSG_PEEK|MSG_DONTWAIT, addr, addr_len)!=0);
-	#endif
-	
-
-	// enable block
-	#ifdef _WIN32
-		{
-			u_long iMode = 0;
-			ioctlsocket(fd, FIONBIO, &iMode);
-		}
-	#else
-		int flg = fcntl(fd, F_GETFL);
-		if(flg!=-1)
-			fcntl(fd, F_SETFL, flg & ~O_NONBLOCK);
-	#endif
-
-	return res;
-}
 static int _hasRecvData(int fd) {
 	char buf;
 	int res = 0;
@@ -1196,7 +1135,7 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 	MULTI SERVER
 */
 // handling all clients - should be called in a while(true)
-int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_activity_t), csocket_multiHandler_t *handler) {
+int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_multiHandler_t *, csocket_activity_t), csocket_multiHandler_t *handler) {
 	if(!src_socket || !handler || src_socket->mode.sc!=1) return -1;
 	
 	// free handler, just in case
@@ -1337,7 +1276,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 
 		// trigger action
 		if(handler->onActivity)
-			handler->onActivity(activity);
+			handler->onActivity(handler, activity);
 	}
 
 	// action on any socket
@@ -1355,7 +1294,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 
 		fdset |= _hasRecvDataBuffer(client.ka, client.fd)==1||_hasRecvFromDataBuffer(client.ka, client.fd, client.addr, &client.addr_len)==1;
 
-		if(fdset||!csocket_isAlive(client.ka)) {
+		if(fdset||!csocket_isAlive(client.ka)||client.shutdown) {
 
 			/**
 			 * 
@@ -1375,8 +1314,12 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			activity.time = time(NULL);
 			activity.update_time = activity.time;
 				
+			// TODO disconnect
+			// DGRAMs allow 0 width data -> recv = 0
+			// options: 1) manual shutdown by user 2) timeout
+
 			// no data: disconnected
-			if(csocket_isAlive(activity.client_socket.ka)==0 || (_isRecvUp(activity.client_socket.fd)==0&&_isRecvFromUp(activity.client_socket.fd, activity.client_socket.addr, &activity.client_socket.addr_len)==0)) {
+			if(csocket_isAlive(activity.client_socket.ka)==0 || client.shutdown) {
 
 				activity.type = CSACT_TYPE_DISCONN;
 				
@@ -1384,7 +1327,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 				
 				// trigger action
 				if(handler->onActivity) {
-					handler->onActivity(activity);
+					handler->onActivity(handler, activity);
 					handler->client_sockets[i] = (const struct csocket_clients)CSOCKET_EMPTY;
 					client.ka = handler->src_socket->ka;
 				}
@@ -1419,12 +1362,28 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 
 				// trigger action on data
 				if((csocket_hasRecvDataA(&activity)==1 || csocket_hasRecvFromDataA(&activity)==1) && handler->onActivity)
-					handler->onActivity(activity);
+					handler->onActivity(handler, activity);
 			}
 		}
 	}
 
 	return 0;
+}
+
+int csocket_shutdownClient(csocket_multiHandler_t *handler, struct csocket_clients *client) {
+	if(!handler) return -1;
+
+	int n = 0;
+
+	for(int i=0; i<handler->maxClients; ++i) {
+		if(handler->client_sockets[i].fd>0 && (!client || handler->client_sockets[i].fd==client->fd)) {
+			handler->client_sockets[i].shutdown = 1;
+			if(client) client->shutdown = 1;
+			n++;
+		}
+	}
+	
+	return n;
 }
 
 #pragma endregion

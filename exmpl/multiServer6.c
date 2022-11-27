@@ -15,7 +15,7 @@
 #include "csocket.h"
 
 
-void onActivity(csocket_activity_t act) {
+void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
 	csocket_printActivity(fileno(stdout), &act);
 	// if data, print
 	if(act.type&CSACT_TYPE_READ) {

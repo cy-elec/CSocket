@@ -15,7 +15,7 @@
 #include "csocket.h"
 
 
-void onActivity(csocket_activity_t act) {
+void onActivity(csocket_multiHandler_t *handler, csocket_activity_t act) {
 	csocket_printActivity(fileno(stdout), &act);
 	// if data, print
 	if(act.type&CSACT_TYPE_READ) {
@@ -38,6 +38,8 @@ void onActivity(csocket_activity_t act) {
 			printf("\tFailed to send [%d]\n\n", srval);
 		else
 			printf("\tsent[%d]: '%s'\n\n", rval, arr);
+		
+		csocket_shutdownClient(handler, &act.client_socket);
 	}
 }
 
