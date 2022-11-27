@@ -119,7 +119,7 @@ struct csocket_client {
 #define CSKA_DEFAULTMSG "CSKA%UNIX%-%HOST%-%USER%\0"
 #define CSKA_DEFAULTMSGLEN 25
 
-struct csocket_keepalive {
+typedef struct csocket_keepalive {
 	int enabled;
 	// keepalive timeout in seconds
 	int timeout;
@@ -148,7 +148,7 @@ struct csocket_keepalive {
 	time_t last_sig;
 	// handler function
 	void (*onActivity)(struct csocket_keepalive *);
-};
+} csocket_keepalive_t;
 
 typedef struct csocket {
 	// sys/socket fields

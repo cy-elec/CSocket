@@ -244,14 +244,14 @@ ssize_t csocket_sendto(csocket_t *src_socket, void *buf, size_t len, int flags) 
 
 #pragma region RECV/SEND BUFFER
 
-static int _hasRecvDataBuffer(struct csocket_keepalive *ka, int fd) {
+static int _hasRecvDataBuffer(csocket_keepalive_t *ka, int fd) {
 	if(!ka) return -1;
 	_updateBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT);
 	if(ka->buffer_usage>0) return 1;
 	return 0;
 }
 
-static int _hasRecvFromDataBuffer(struct csocket_keepalive *ka, int fd, struct sockaddr *addr, socklen_t *addr_len) {
+static int _hasRecvFromDataBuffer(csocket_keepalive_t *ka, int fd, struct sockaddr *addr, socklen_t *addr_len) {
 	if(!ka) return -1;
 	_updateFromBuffer(ka, fd, MSG_PEEK|MSG_DONTWAIT, addr, addr_len);
 	if(ka->buffer_usage>0) return 1;
@@ -259,7 +259,7 @@ static int _hasRecvFromDataBuffer(struct csocket_keepalive *ka, int fd, struct s
 }
 
 // update internal buffer
-static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags) {
+static ssize_t _updateBuffer(csocket_keepalive_t *ka, int fd, int flags) {
 	if(!ka || !ka->enabled) return -1;
 
 	if(ka->buffer_usage==ka->buffer_len) {
@@ -327,7 +327,7 @@ static ssize_t _updateBuffer(struct csocket_keepalive *ka, int fd, int flags) {
 }
 
 // update internal buffer (from)
-static ssize_t _updateFromBuffer(struct csocket_keepalive *ka, int fd, int flags, struct sockaddr *addr, socklen_t *addr_len) {
+static ssize_t _updateFromBuffer(csocket_keepalive_t *ka, int fd, int flags, struct sockaddr *addr, socklen_t *addr_len) {
 	if(!ka || !ka->enabled) return -1;
 
 	if(ka->buffer_usage==ka->buffer_len) {
@@ -744,7 +744,7 @@ csocket_activity_t * csocket_sockToActA(csocket_t *src_socket, csocket_addr_t *d
 
 #pragma region KEEPALIVE
 
-int csocket_keepalive_create(int timeout, char *msg, size_t msg_len, struct csocket_keepalive *ka, csocket_t *src_socket) {
+int csocket_keepalive_create(int timeout, char *msg, size_t msg_len, csocket_keepalive_t *ka, csocket_t *src_socket) {
 	if(!src_socket || !ka) return -1;
 
 	if(timeout<1) ka->timeout = CSKA_TIMEOUT;
@@ -798,7 +798,7 @@ int csocket_keepalive_create(int timeout, char *msg, size_t msg_len, struct csoc
 	return 0;
 }
 
-int csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, struct csocket_keepalive *ka, csocket_t *src_socket) {
+int csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, csocket_keepalive_t *ka, csocket_t *src_socket) {
 	if(!src_socket || !ka) return -1;
 
 	if(timeout<1) ka->timeout = CSKA_TIMEOUT;
@@ -825,7 +825,7 @@ int csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, struct csoc
 	return 0;
 }
 
-int csocket_keepalive_set(struct csocket_keepalive *ka, csocket_t *src_socket) {
+int csocket_keepalive_set(csocket_keepalive_t *ka, csocket_t *src_socket) {
 	if(!src_socket || !ka) return -1;
 	src_socket->ka = ka;
 	return 0;
@@ -833,17 +833,17 @@ int csocket_keepalive_set(struct csocket_keepalive *ka, csocket_t *src_socket) {
 
 int csocket_keepalive_unset(csocket_t *src_socket) {
 	if(!src_socket || !src_socket->ka) return -1;
-	*src_socket->ka = (const struct csocket_keepalive)CSOCKET_EMPTY;
+	*src_socket->ka = (const csocket_keepalive_t)CSOCKET_EMPTY;
 	return 0;
 }
 
-int csocket_keepalive_copy(struct csocket_keepalive **dst, const struct csocket_keepalive *src) {
+int csocket_keepalive_copy(csocket_keepalive_t **dst, const csocket_keepalive_t *src) {
 	if(!dst||!src) return 0;
 
 	csocket_freeKeepalive(*dst);
 
 	if(!*dst) {
-		*dst = calloc(1, sizeof(struct csocket_keepalive));
+		*dst = calloc(1, sizeof(csocket_keepalive_t));
 		if(!*dst) return -1;
 	}
 
@@ -870,7 +870,7 @@ int csocket_keepalive_copy(struct csocket_keepalive **dst, const struct csocket_
 	return 0;
 }
 
-int csocket_isAlive(struct csocket_keepalive *ka) {
+int csocket_isAlive(csocket_keepalive_t *ka) {
 	if(!ka || !ka->enabled) return -1;
 	if(ka->timeout == 0) return 1;
 
@@ -979,7 +979,7 @@ char * csocket_resolveKeepAliveMsg(char *src, size_t *size, size_t *offset) {
 	return dst;
 }
 
-int csocket_getKeepAliveVariable(char *dst, size_t *dst_len, char *query, struct csocket_keepalive *ka) {
+int csocket_getKeepAliveVariable(char *dst, size_t *dst_len, char *query, csocket_keepalive_t *ka) {
 	if(!dst || !query || !ka || !ka->enabled || !ka->params || !ka->params_usage) return -1;
 
 	size_t qoff = 0;
@@ -1002,7 +1002,7 @@ int csocket_getKeepAliveVariable(char *dst, size_t *dst_len, char *query, struct
 	return -1;
 }
 
-int csocket_updateKeepAlive(struct csocket_keepalive *ka, int fd) {
+int csocket_updateKeepAlive(csocket_keepalive_t *ka, int fd) {
 	if(!ka) return -1;
 	if(!ka->enabled) return 0;
 
@@ -1013,7 +1013,7 @@ int csocket_updateKeepAlive(struct csocket_keepalive *ka, int fd) {
 	return 0;
 }
 
-int csocket_updateKeepAliveFrom(struct csocket_keepalive *ka, int fd, csocket_addr_t *dst_addr) {
+int csocket_updateKeepAliveFrom(csocket_keepalive_t *ka, int fd, csocket_addr_t *dst_addr) {
 	if(!ka||!dst_addr) return -1;
 	if(!ka->enabled) return 0;
 
@@ -1530,7 +1530,7 @@ void csocket_freeClients(struct csocket_clients *client) {
 	*client = (const struct csocket_clients)CSOCKET_EMPTY;
 }
 
-void csocket_freeKeepalive(struct csocket_keepalive *ka) {
+void csocket_freeKeepalive(csocket_keepalive_t *ka) {
 	if(!ka) return;
 
 	// free
@@ -1550,7 +1550,7 @@ void csocket_freeKeepalive(struct csocket_keepalive *ka) {
 	}
 
 
-	*ka = (const struct csocket_keepalive)CSOCKET_EMPTY;
+	*ka = (const csocket_keepalive_t)CSOCKET_EMPTY;
 }
 
 #pragma endregion
