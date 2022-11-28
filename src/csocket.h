@@ -149,6 +149,8 @@ typedef struct csocket_keepalive {
 	time_t last_sig;
 	// handler function
 	void (*onActivity)(struct csocket_keepalive *);
+
+	int fd;
 	csocket_addr_t address;
 } csocket_keepalive_t;
 

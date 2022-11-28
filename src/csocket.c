@@ -649,7 +649,7 @@ void csocket_printActivity(FILE *fp, csocket_activity_t *activity) {
 	char addrs[40];
 	CSOCKET_NTOP(activity->client_socket.domain, activity->client_socket.addr, addrs, 40);
 
-	fprintf(fp, "[%.24s] >> %s", ctime(&activity->time), addrs);
+	fprintf(fp, "[%.24s] >> %s   Handle: [%d]\n", ctime(&activity->time), addrs, activity->client_socket.fd);
 	fprintf(fp, "\tLast update: %.24s\n", ctime(&activity->update_time));
 	fprintf(fp, "\tType: %s%s%s%s%s%s\n", activity->type&CSACT_TYPE_CONN?"CONN ":"", activity->type&CSACT_TYPE_DISCONN?"DISCONN ":"", activity->type&CSACT_TYPE_READ?"READ ":"", activity->type&CSACT_TYPE_WRITE?"WRITE ":"", activity->type&CSACT_TYPE_EXT?"EXT ":"", activity->type&CSACT_TYPE_DECLINED?"DECLINED ":"");
 	fprintf(fp, "\t\n");
@@ -863,6 +863,7 @@ int csocket_keepalive_copy(csocket_keepalive_t **dst, const csocket_keepalive_t 
 	(*dst)->last_sig = time(NULL);
 	(*dst)->onActivity = src->onActivity;
 
+	(*dst)->fd = src->fd;
 	(*dst)->address.domain = src->address.domain;
 	(*dst)->address.addr = src->address.addr;
 	(*dst)->address.addr_len = src->address.addr_len;
@@ -1030,7 +1031,7 @@ void csocket_printKeepAlive(FILE *fp, csocket_keepalive_t *ka) {
 	char addrs[40];
 	CSOCKET_NTOP(ka->address.domain, ka->address.addr, addrs, 40);
 
-	fprintf(fp, "[%.24s] >> %s", ctime(&ka->last_sig), addrs);
+	fprintf(fp, "[%.24s] >> %s   Handle: [%d]\n", ctime(&ka->last_sig), addrs, ka->fd);
 	fprintf(fp, "\tTimeout: %d[s]\n\tType: KEEPALIVE\n\tHandlerEnabled: %d\n", ka->timeout, ka->onActivity!=0);
 	fprintf(fp, "\t\n");
 }
@@ -1113,6 +1114,7 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 	activity->client_socket.fd = server.client_fd;
 
 	if(activity->client_socket.ka) {
+		activity->client_socket.ka->fd = activity->client_socket.fd;
 		activity->client_socket.ka->address.domain = activity->client_socket.domain;
 		activity->client_socket.ka->address.addr = activity->client_socket.addr;
 		activity->client_socket.ka->address.addr_len = activity->client_socket.addr_len;
@@ -1250,6 +1252,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 		else
 			client.domain = -1;
 
+		client.ka->fd = client.fd;
 		client.ka->address.domain = client.domain;
 		client.ka->address.addr = client.addr;
 		client.ka->address.addr_len = client.addr_len;
