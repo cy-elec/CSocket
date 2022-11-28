@@ -885,7 +885,7 @@ int csocket_keepAlive(csocket_t *src_socket) {
 		strcpy(src_socket->last_err, "keepAlive unavailable: not enabled");
 		return -1;
 	}
-	if(src_socket->ka->last_sig>time(NULL)-src_socket->ka->timeout+1) {
+	if(src_socket->ka->last_sig>time(NULL)-src_socket->ka->timeout+src_socket->ka->timeout/4) {
 		strcpy(src_socket->last_err, "keepAlive unavailable: timeout");
 		return 0;
 	}	
