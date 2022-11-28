@@ -315,7 +315,7 @@ static ssize_t _updateBuffer(csocket_keepalive_t *ka, int fd, int flags) {
 	*/
 	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage)) {
 		ka->last_sig = time(NULL);
-		if(ka->onActivity) ka->onActivity(ka);
+		if(ka->onActivity && ka->connection_time!=0) ka->onActivity(ka);
 	}
 
 	// if cropped length is smaller than previous length, call update again with offset of current length
@@ -384,7 +384,7 @@ static ssize_t _updateFromBuffer(csocket_keepalive_t *ka, int fd, int flags, str
 	*/
 	if(!_findKeepAliveMsg(ka->msg, ka->msg_len, ka->buffer, &ka->buffer_usage, ka->params, &ka->params_usage)) {
 		ka->last_sig = time(NULL);
-		if(ka->onActivity) ka->onActivity(ka);
+		if(ka->onActivity && ka->connection_time!=0) ka->onActivity(ka);
 	}
 
 	// if cropped length is smaller than previous length, call update again with offset of current length
@@ -651,6 +651,9 @@ void csocket_printActivity(FILE *fp, csocket_activity_t *activity) {
 
 	fprintf(fp, "[%.24s] >> %s   Handle: [%d]\n", ctime(&activity->time), addrs, activity->client_socket.fd);
 	fprintf(fp, "\tLast update: %.24s\n", ctime(&activity->update_time));
+	fprintf(fp, "\tConnectedOn: %s", activity->client_socket.connection_time==0?"unknown\n":"");
+	if(activity->client_socket.connection_time!=0)
+		fprintf(fp, "%lu\n", (unsigned long)activity->client_socket.connection_time);
 	fprintf(fp, "\tType: %s%s%s%s%s%s\n", activity->type&CSACT_TYPE_CONN?"CONN ":"", activity->type&CSACT_TYPE_DISCONN?"DISCONN ":"", activity->type&CSACT_TYPE_READ?"READ ":"", activity->type&CSACT_TYPE_WRITE?"WRITE ":"", activity->type&CSACT_TYPE_EXT?"EXT ":"", activity->type&CSACT_TYPE_DECLINED?"DECLINED ":"");
 	fprintf(fp, "\t\n");
 }
@@ -864,6 +867,7 @@ int csocket_keepalive_copy(csocket_keepalive_t **dst, const csocket_keepalive_t 
 	(*dst)->onActivity = src->onActivity;
 
 	(*dst)->fd = src->fd;
+	(*dst)->connection_time = src->connection_time;
 	(*dst)->address.domain = src->address.domain;
 	(*dst)->address.addr = src->address.addr;
 	(*dst)->address.addr_len = src->address.addr_len;
@@ -1033,6 +1037,9 @@ void csocket_printKeepAlive(FILE *fp, csocket_keepalive_t *ka) {
 
 	fprintf(fp, "[%.24s] >> %s   Handle: [%d]\n", ctime(&ka->last_sig), addrs, ka->fd);
 	fprintf(fp, "\tTimeout: %d[s]\n\tType: KEEPALIVE\n\tHandlerEnabled: %d\n", ka->timeout, ka->onActivity!=0);
+	fprintf(fp, "\tConnectedOn: %s", ka->connection_time==0?"unknown\n":"");
+	if(ka->connection_time!=0)
+		fprintf(fp, "%lu\n", (unsigned long)ka->connection_time);
 	fprintf(fp, "\t\n");
 }
 
@@ -1082,6 +1089,7 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 
 	struct csocket_server server = *((struct csocket_server*)&src_socket->mode);
 
+	activity->client_socket.connection_time = time(NULL);
 
 	// update size
 	if(src_socket->domain == AF_INET)
@@ -1143,8 +1151,13 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 		activity->type |= CSACT_TYPE_WRITE;
 	if(FD_ISSET(activity->client_socket.fd, &rd))
 		activity->type |= CSACT_TYPE_READ;
+	if((!csocket_hasRecvDataA(activity) && !csocket_hasRecvFromDataA(activity)))
+		activity->type &= ~CSACT_TYPE_READ;
 	if(FD_ISSET(activity->client_socket.fd, &ex))
 		activity->type |= CSACT_TYPE_EXT;
+
+	// set after calling the update function
+	activity->client_socket.ka->connection_time = activity->client_socket.connection_time;
 
 	return 0;
 }
@@ -1243,6 +1256,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 		 * 
 		**/
 		client.fd = server.client_fd;
+		client.connection_time = time(NULL);
 		
 		// verify size and set domain
 		if(client.addr_len == sizeof(struct sockaddr_in))
@@ -1262,6 +1276,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 		csocket_activity_t activity = CSOCKET_EMPTY;
 		activity.client_socket = client;
 		activity.type = CSACT_TYPE_CONN | CSACT_TYPE_DECLINED;
+
 		// set time
 		activity.time = time(NULL);
 		activity.update_time = activity.time;
@@ -1288,6 +1303,9 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			activity.type &= ~CSACT_TYPE_READ;
 		if(FD_ISSET(activity.client_socket.fd, &ex2))
 			activity.type |= CSACT_TYPE_EXT;
+
+		// set after calling the update function
+		client.ka->connection_time = client.connection_time;
 
 		// add to list
 		for(int i=0; i<handler->maxClients; ++i) {
@@ -1327,13 +1345,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 			 * 
 			**/
 			csocket_activity_t activity = CSOCKET_EMPTY;
-			activity.client_socket.fd = client.fd;
-			activity.client_socket.domain = client.domain;
-			activity.client_socket.addr = client.addr;
-			activity.client_socket.addr_len = client.addr_len;
-
-			// keepalive
-			activity.client_socket.ka = client.ka;
+			activity.client_socket = client;
 
 			// set time
 			activity.time = time(NULL);

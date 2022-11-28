@@ -152,6 +152,7 @@ typedef struct csocket_keepalive {
 
 	int fd;
 	csocket_addr_t address;
+	time_t connection_time;
 } csocket_keepalive_t;
 
 typedef struct csocket {
@@ -178,6 +179,7 @@ struct csocket_clients {
 	int domain;
 	struct sockaddr *addr;
 	socklen_t addr_len;
+	time_t connection_time;
 	// keepalive
 	struct csocket_keepalive *ka;
 	// manual shutdown
