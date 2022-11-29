@@ -40,7 +40,7 @@ int main(void) {
 	printf("connect[%s--%d]: %d\n", str, ntohs(socket.domain==AF_INET?((struct sockaddr_in*)socket.mode.addr)->sin_port:((struct sockaddr_in6*)socket.mode.addr)->sin6_port), rval);
 	if(rval) return 1;
 
-	char buf[] = "halo CSKA%UNIX%1668967786%UNIX%-%HOST%FELIX%HOST%-%USER%fexkr%USER%\0Alpha";
+	char buf[] = "halo CSKA%UNIX%1668967786%UNIX%-%HOST%USER1%HOST%-%USER%usrname%USER%\0Alpha";
 	rval = csocket_send(&socket, buf, sizeof(buf)-1, 0);
 	if(sizeof(buf)-1!=rval) {
 		printf("Failed to send data [%d]\n", rval);
@@ -48,7 +48,7 @@ int main(void) {
 	}
 	printf("sent[%d]: \"%s\"\n", rval, buf);
 
-	char buf2[] = "byee CSKA%UNIX%1668967787%UNIX%-%HOST%NILSV%HOST%-%USER%nilsk%USER%\0Betha";
+	char buf2[] = "byee CSKA%UNIX%1668967787%UNIX%-%HOST%USER2%HOST%-%USER%nusername2%USER%\0Betha";
 	rval = csocket_send(&socket, buf2, sizeof(buf2), 0);
 	if(sizeof(buf2)!=rval) {
 		printf("Failed to send data [%d]\n", rval);
