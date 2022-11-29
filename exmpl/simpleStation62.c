@@ -44,7 +44,7 @@ int main(void) {
 	printf("binding: %d\n", rval);
 	if(rval) return 1;
 
-	char buf[] = "halo CSKA%UNIX%1668967786%UNIX%-%HOST%FELIX%HOST%-%USER%fexkr%USER%\0Alpha";
+	char buf[] = "halo CSKA%UNIX%1668967786%UNIX%-%HOST%USER1%HOST%-%USER%username%USER%\0Alpha";
 
 	rval = csocket_recvfrom(&listener, &dst_addr, buf, sizeof(buf), 0);
 	if(rval<1) {
