@@ -7,6 +7,8 @@
  * 
  * @copyright Copyright (c) 2022
  * 
+ * This library is distributed under the terms of the MIT License and WITHOUT ANY WARRANTY
+ * 
 **/
 
 
@@ -217,7 +219,6 @@ typedef struct csocket_multiHandler {
 	// client stash
 	int maxClients;
 	struct csocket_clients *client_sockets;
-
 } csocket_multiHandler_t;
 
 
