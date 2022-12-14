@@ -421,7 +421,7 @@ typedef struct csocket_activity {
 
 ## KEEPALIVE
 
-* ### `csocket_keepalive_create(int timeout, char *msg, size_t msg_len, struct csocket_keepalive *ka, csocket_t *src_socket)`
+* ### `csocket_keepalive_create(int timeout, char *msg, size_t msg_len, csocket_keepalive_t *ka, csocket_t *src_socket)`
 
   |||
   --|--
@@ -429,7 +429,7 @@ typedef struct csocket_activity {
   |**params**||
   |**return**||
 
-* ### `csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, struct csocket_keepalive *ka, csocket_t *src_socket)`
+* ### `csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, csocket_keepalive_t *ka, csocket_t *src_socket)`
 
   |||
   --|--
@@ -437,7 +437,7 @@ typedef struct csocket_activity {
   |**params**||
   |**return**||
 
-* ### `csocket_keepalive_set(struct csocket_keepalive *ka, csocket_t *src_socket)`
+* ### `csocket_keepalive_set(csocket_keepalive_t *ka, csocket_t *src_socket)`
 
   |||
   --|--
@@ -453,7 +453,7 @@ typedef struct csocket_activity {
   |**params**||
   |**return**||
 
-* ### `csocket_keepalive_copy(struct csocket_keepalive **dst, const struct csocket_keepalive *src)`
+* ### `csocket_keepalive_copy(csocket_keepalive_t **dst, const csocket_keepalive_t *src)`
 
   |||
   --|--
@@ -461,7 +461,7 @@ typedef struct csocket_activity {
   |**params**||
   |**return**||
 
-* ### `csocket_isAlive(struct csocket_keepalive *ka)`
+* ### `csocket_isAlive(csocket_keepalive_t *ka)`
 
   |||
   --|--
@@ -481,40 +481,40 @@ typedef struct csocket_activity {
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Resolves the replacement string of a specified variable and writes the relative positioning to the referenced variable `offset`.|
+  |**params**|_pointer to a char buffer that holds the variable_ `char *src`, _size of the buffer_ `size_t size`, _relative positioning_ `size_t *offset`|
+  |**return**|`char *` - On success, returns pointer to replacement string on heap, otherwise NULL.|
 
-* ### `csocket_getKeepAliveVariable(char *dst, size_t *dst_len, char *query, struct csocket_keepalive *ka)`
-
-  |||
-  --|--
-  |**description**||
-  |**params**||
-  |**return**||
-
-* ### `csocket_updateKeepAlive(struct csocket_keepalive *ka, int fd)`
+* ### `csocket_getKeepAliveVariable(char *dst, size_t *dst_len, char *query, csocket_keepalive_t *ka)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Resolves a Query `query` from the keepalive variables and places it in the `dst` buffer of size `dst_len`.|
+  |**params**|_pointer to destination buffer_ `char *dst`, _size of the buffer_ `size_t *dst_len`, _pointer to string query_ `char *query`, _pointer to a keepalive type_ `csocket_keepalive_t *ka`|
+  |**return**|`int` - On success return 0, otherwise -1.|
 
-* ### `csocket_updateKeepAliveFrom(struct csocket_keepalive *ka, int fd, csocket_addr_t *dst_addr)`
+* ### `csocket_updateKeepAlive(csocket_keepalive_t *ka, int fd)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Updates keepalive info for `connected` sockets.|
+  |**params**|_pointer to a keepalive type_ `csocket_keepalive_t *ka`, _socket fd_ `int fd`|
+  |**return**|`int` - On success return 0, otherwise -1.|
+
+* ### `csocket_updateKeepAliveFrom(csocket_keepalive_t *ka, int fd, csocket_addr_t *dst_addr)`
+
+  |||
+  --|--
+  |**description**|Updates keepalive info for `connectionless` sockets.|
+  |**params**|_pointer to a keepalive type_ `csocket_keepalive_t *ka`, _socket fd_ `int fd`, _pointer to an address type_ `csocket_addr_t *dst_addr`|
+  |**return**|`int` - On success return 0, otherwise -1.|
 
 * ### `csocket_printKeepAlive(FILE *fp, csocket_keepalive_t *ka)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
+  |**description**|Writes the keepalive type to the specified FILE.|
+  |**params**|_FILE_ `FILE *fp`, _pointer to a keepalive type_ `csocket_keepalive_t *ka`|
   |**return**|`void`|
 
 ## SERVER
@@ -523,49 +523,49 @@ typedef struct csocket_activity {
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Bind a name to a csocket.|
+  |**params**|_pointer to a csocket_ `csocket_t *src_socket`|
+  |**return**|`int` - On success return 0, otherwise return -1 and set the last error in last_err.|
 
 * ### `csocket_listen(csocket_t *src_socket, int maxQueue)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Listen for connections on csocket with a provided Queue size.|
+  |**params**|_pointer to a csocket_ `csocket_t *src_socket`, _Queue size_ `int maxQueue`|
+  |**return**|`int` - On success return 0, otherwise return -1 and set the last error in last_err.|
 
 * ### `csocket_accept(csocket_t *src_socket, csocket_activity_t *activity)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Block code execution until a client connects and set the corresponding activity flags.|
+  |**params**|_pointer to a csocket_ `csocket_t *src_socket`, _pointer to an activity type_ `csocket_activity_t *activity`|
+  |**return**|`int` - On success, return 0, otherwise return -1 and set the last error in last_err.|
 
 * ### `csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_multiHandler_t *, csocket_activity_t), csocket_multiHandler_t *handler)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Creates a multiHandler `handler` that can be used in [csocket_multiServer()](#csocket_multiservercsocket_multihandler_t-handler).|
+  |**params**|_pointer to a csocket_ `csocket_t *src_socket`, _Size of client buffer_ `int maxClient`, _pointer to an activity handler_ `void (*onActivity)(csocket_multiHandler_t *, csocket_activity_t)`, _pointer to a multiHandler type_ `csocket_multiHAndler_t *handler`|
+  |**return**|`int` - On success, return 0, otherwise return -1 and set the last error in last_err.|
 
 * ### `csocket_multiServer(csocket_multiHandler_t *handler)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Runs the multiServer.|
+  |**params**|_pointer to a mutliHandler type_ `csocket_multiHandler_t *handler`|
+  |**return**|`int` - On success, return 0, otherwise return -1 and set the last error in last_err.|
 
 * ### `csocket_shutdownClient(csocket_multiHandler_t *handler, struct csocket_clients *client)`
 
   |||
   --|--
-  |**description**||
-  |**params**||
-  |**return**||
+  |**description**|Marks Client `client` for shutdown. If `client` is NULL, marks all connected clients for shutdown.|
+  |**params**|_pointer to a multiHandler type_ `csocket_multiHandler_t *handler`, _pointer to a clients struct_ `struct csocket_clients *client`|
+  |**return**|`int` - On success, return n > 0 number of marked clients, otherwise return <= 0.|
 
 ## CLIENT
 

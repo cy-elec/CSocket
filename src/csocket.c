@@ -1078,6 +1078,7 @@ int csocket_bindServer(csocket_t *src_socket){
 int csocket_listen(csocket_t *src_socket, int maxQueue) {
 	if(!src_socket || src_socket->mode.sc!=1) return -1;
 	strcpy(src_socket->last_err, "");
+	
 	if(src_socket->type != SOCK_STREAM && src_socket->type != SOCK_SEQPACKET) {
 		strcpy(src_socket->last_err, "invalid type");
 		return -1;
@@ -1208,6 +1209,7 @@ int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActi
 
 int csocket_multiServer(csocket_multiHandler_t *handler) {
 	if(!handler || handler->src_socket->mode.sc!=1) return -1;
+	strcpy(handler->src_socket->last_err, ""); 
 
 	/**
 	 * 1. SET FDS
@@ -1341,7 +1343,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 	// action on any socket
 	for(int i=0; i<handler->maxClients; ++i) {
 		// client
-		struct csocket_clients client = handler->client_sockets[i]; 
+		struct csocket_clients client = handler->client_sockets[i];
 
 		int fdset = FD_ISSET(client.fd, &rd);
 
@@ -1426,6 +1428,7 @@ int csocket_multiServer(csocket_multiHandler_t *handler) {
 
 int csocket_shutdownClient(csocket_multiHandler_t *handler, struct csocket_clients *client) {
 	if(!handler) return -1;
+	strcpy(handler->src_socket->last_err, "");
 
 	int n = 0;
 
