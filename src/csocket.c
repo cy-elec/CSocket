@@ -201,6 +201,7 @@ static int _hasRecvFromData(int fd, struct sockaddr *addr, socklen_t *addr_len) 
 // read/write
 int csocket_hasRecvData(csocket_t *src_socket) {
 	if(!src_socket) return -1;
+	strcpy(src_socket->last_err, "");
 	if(src_socket->ka && src_socket->ka->enabled) {
 		return _hasRecvDataBuffer(src_socket->ka, src_socket->mode.fd);
 	}
@@ -209,6 +210,7 @@ int csocket_hasRecvData(csocket_t *src_socket) {
 
 int csocket_hasRecvFromData(csocket_t *src_socket, csocket_addr_t *dst_addr) {
 	if(!src_socket||!dst_addr) return -1;
+	strcpy(src_socket->last_err, "");
 	if(src_socket->ka && src_socket->ka->enabled) {
 		return _hasRecvFromDataBuffer(src_socket->ka, src_socket->mode.fd, dst_addr->addr, &dst_addr->addr_len);
 	}
@@ -216,8 +218,8 @@ int csocket_hasRecvFromData(csocket_t *src_socket, csocket_addr_t *dst_addr) {
 }
 
 ssize_t csocket_recv(csocket_t *src_socket, void *buf, size_t len, int flags) {
-	
 	if(!src_socket) return -1;
+	strcpy(src_socket->last_err, "");
 	if(src_socket->ka && src_socket->ka->enabled) {
 		return _readBuffer(src_socket, buf, len, flags);
 	}
@@ -234,11 +236,13 @@ ssize_t csocket_recvfrom(csocket_t *src_socket, csocket_addr_t *dst_addr, void *
 
 ssize_t csocket_send(csocket_t *src_socket, void *buf, size_t len, int flags) {
 	if(!src_socket) return -1;
+	strcpy(src_socket->last_err, "");
 	return send(src_socket->mode.fd, buf, len, flags);
 }
 
 ssize_t csocket_sendto(csocket_t *src_socket, void *buf, size_t len, int flags) {
 	if(!src_socket) return -1;
+	strcpy(src_socket->last_err, "");
 	return sendto(src_socket->mode.fd, buf, len, flags, src_socket->mode.addr, src_socket->mode.addr_len);
 }
 
@@ -704,6 +708,7 @@ ssize_t csocket_sendtoA(csocket_activity_t *activity, void *buf, size_t len, int
 
 csocket_activity_t * csocket_sockToAct(csocket_t *src_socket) {
 	if(!src_socket) return NULL;
+	strcpy(src_socket->last_err, "");
 
 	csocket_activity_t *activity = calloc(1, sizeof(csocket_activity_t));
 	if(!activity) return NULL;
@@ -723,6 +728,7 @@ csocket_activity_t * csocket_sockToAct(csocket_t *src_socket) {
 
 csocket_activity_t * csocket_sockToActA(csocket_t *src_socket, csocket_addr_t *dst_addr) {
 	if(!src_socket||!dst_addr) return NULL;
+	strcpy(src_socket->last_err, "");
 
 	csocket_activity_t *activity = calloc(1, sizeof(csocket_activity_t));
 	if(!activity) return NULL;
@@ -746,6 +752,7 @@ csocket_activity_t * csocket_sockToActA(csocket_t *src_socket, csocket_addr_t *d
 
 int csocket_keepalive_create(int timeout, char *msg, size_t msg_len, csocket_keepalive_t *ka, csocket_t *src_socket) {
 	if(!src_socket || !ka) return -1;
+	strcpy(src_socket->last_err, "");
 
 	if(timeout<1) ka->timeout = CSKA_TIMEOUT;
 	else ka->timeout = timeout;
@@ -800,6 +807,7 @@ int csocket_keepalive_create(int timeout, char *msg, size_t msg_len, csocket_kee
 
 int csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, csocket_keepalive_t *ka, csocket_t *src_socket) {
 	if(!src_socket || !ka) return -1;
+	strcpy(src_socket->last_err, "");
 
 	if(timeout<1) ka->timeout = CSKA_TIMEOUT;
 	else ka->timeout = timeout;
@@ -827,12 +835,14 @@ int csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, csocket_kee
 
 int csocket_keepalive_set(csocket_keepalive_t *ka, csocket_t *src_socket) {
 	if(!src_socket || !ka) return -1;
+	strcpy(src_socket->last_err, "");
 	src_socket->ka = ka;
 	return 0;
 }
 
 int csocket_keepalive_unset(csocket_t *src_socket) {
 	if(!src_socket || !src_socket->ka) return -1;
+	strcpy(src_socket->last_err, "");
 	*src_socket->ka = (const csocket_keepalive_t)CSOCKET_EMPTY;
 	return 0;
 }
@@ -887,6 +897,7 @@ int csocket_isAlive(csocket_keepalive_t *ka) {
 
 int csocket_keepAlive(csocket_t *src_socket) {
 	if(!src_socket || src_socket->mode.sc!=2 || !src_socket->ka) return -1;
+	strcpy(src_socket->last_err, "");
 	
 	if(!src_socket->ka->enabled) {
 		strcpy(src_socket->last_err, "keepAlive unavailable: not enabled");
@@ -1052,6 +1063,7 @@ void csocket_printKeepAlive(FILE *fp, csocket_keepalive_t *ka) {
 // establish connection/bind socket
 int csocket_bindServer(csocket_t *src_socket){
 	if(!src_socket || src_socket->mode.sc!=1) return -1;
+	strcpy(src_socket->last_err, "");
 
 	// bind
 	struct csocket_server server = *((struct csocket_server*)&src_socket->mode);
@@ -1065,6 +1077,7 @@ int csocket_bindServer(csocket_t *src_socket){
 
 int csocket_listen(csocket_t *src_socket, int maxQueue) {
 	if(!src_socket || src_socket->mode.sc!=1) return -1;
+	strcpy(src_socket->last_err, "");
 	if(src_socket->type != SOCK_STREAM && src_socket->type != SOCK_SEQPACKET) {
 		strcpy(src_socket->last_err, "invalid type");
 		return -1;
@@ -1082,6 +1095,7 @@ int csocket_listen(csocket_t *src_socket, int maxQueue) {
 
 int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 	if(!src_socket || !activity || src_socket->mode.sc!=1) return -1;
+	strcpy(src_socket->last_err, "");
 
 	// free activity, just in case
 	csocket_freeActivity(activity);
@@ -1170,6 +1184,7 @@ int csocket_accept(csocket_t *src_socket, csocket_activity_t *activity) {
 // handling all clients - should be called in a while(true)
 int csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_multiHandler_t *, csocket_activity_t), csocket_multiHandler_t *handler) {
 	if(!src_socket || !handler || src_socket->mode.sc!=1) return -1;
+	strcpy(src_socket->last_err, "");
 	
 	// free handler, just in case
 	csocket_freeMultiHandler(handler);
@@ -1431,6 +1446,7 @@ int csocket_shutdownClient(csocket_multiHandler_t *handler, struct csocket_clien
 
 int csocket_connectClient(csocket_t *src_socket, struct timeval *timeout) {
 	if(!src_socket || src_socket->mode.sc!=2) return -1;
+	strcpy(src_socket->last_err, "");
 
 	struct csocket_client client = *((struct csocket_client*)&src_socket->mode);
 	
@@ -1508,6 +1524,7 @@ const char * csocket_ntop(int domain, const void *addr, char *dst, socklen_t len
 // free
 void csocket_free(csocket_t *src_socket) {
 	if(!src_socket) return;
+	strcpy(src_socket->last_err, "");
 	
 	// free
 	if(src_socket->mode.sc>0&&src_socket->mode.addr) {
@@ -1600,6 +1617,7 @@ void csocket_freeKeepalive(csocket_keepalive_t *ka) {
 // close connection
 void csocket_close(csocket_t *src_socket) {
 	if(!src_socket) return;
+	strcpy(src_socket->last_err, "");
 
 	// free (close remaining fds)
 	csocket_free(src_socket);
