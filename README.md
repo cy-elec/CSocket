@@ -245,10 +245,397 @@ typedef struct csocket_activity {
 
 ## Functions
 
-* ## name
+## SOCKET SETUP
+
+* ### `csocket_setAddress(struct sockaddr **out_addr, socklen_t *addr_len, int domain, void *addrc, int port, int specialAddr)`
 
   |||
   --|--
   |**description**||
   |**params**||
   |**return**||
+
+* ### `csocket_setAddressA(csocket_addr_t *out_addr, int domain, void *addrc, int port, int specialAddr)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_initServerSocket(int domain, int type, int protocol, void *addrc, int port, csocket_t *src_socket, int specialAddr)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_initClientSocket(int domain, int type, int protocol, void *addrc, int port, csocket_t *src_socket, int specialAddr)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+## RECV/SEND
+
+* ### `csocket_hasRecvData(csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_hasRecvFromData(csocket_t *src_socket, csocket_addr_t *dst_addr)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_recv(csocket_t *src_socket, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_recvfrom(csocket_t *src_socket, csocket_addr_t *dst_addr, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_send(csocket_t *src_socket, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_sendto(csocket_t *src_socket, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+## ACTIVITY
+
+* ### `csocket_updateA(csocket_activity_t *activity)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_updateFromA(csocket_activity_t *activity)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_printActivity(FILE *fp, csocket_activity_t *activity)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_hasRecvDataA(csocket_activity_t *activity)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_hasRecvFromDataA(csocket_activity_t *activity)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_recvA(csocket_activity_t *activity, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_recvfromA(csocket_activity_t *activity, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_sendA(csocket_activity_t *activity, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_sendtoA(csocket_activity_t *activity, void *buf, size_t len, int flags)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_sockToAct(csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_sockToActA(csocket_t *src_socket, csocket_addr_t *dst_addr)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+## KEEPALIVE
+
+* ### `csocket_keepalive_create(int timeout, char *msg, size_t msg_len, struct csocket_keepalive *ka, csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_keepalive_modify(int timeout, char *msg, size_t msg_len, struct csocket_keepalive *ka, csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_keepalive_set(struct csocket_keepalive *ka, csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_keepalive_unset(csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_keepalive_copy(struct csocket_keepalive **dst, const struct csocket_keepalive *src)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_isAlive(struct csocket_keepalive *ka)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_keepAlive(csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_resolveKeepAliveMsg(char *src, size_t *size, size_t *offset)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_getKeepAliveVariable(char *dst, size_t *dst_len, char *query, struct csocket_keepalive *ka)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_updateKeepAlive(struct csocket_keepalive *ka, int fd)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_updateKeepAliveFrom(struct csocket_keepalive *ka, int fd, csocket_addr_t *dst_addr)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_printKeepAlive(FILE *fp, csocket_keepalive_t *ka)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**|`void`|
+
+## SERVER
+
+* ### `csocket_bindServer(csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_listen(csocket_t *src_socket, int maxQueue)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_accept(csocket_t *src_socket, csocket_activity_t *activity)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_setUpMultiServer(csocket_t *src_socket, int maxClient, void (*onActivity)(csocket_multiHandler_t *, csocket_activity_t), csocket_multiHandler_t *handler)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_multiServer(csocket_multiHandler_t *handler)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+* ### `csocket_shutdownClient(csocket_multiHandler_t *handler, struct csocket_clients *client)`
+
+  |||
+  --|--
+  |**description**||
+  |**params**||
+  |**return**||
+
+## CLIENT
+
+* ### `csocket_connectClient(csocket_t *src_socket, struct timeval *timeout)`
+
+  |||
+  --|--
+  |**description**|Connects a csocket. If timeout is not NULL, return after max. timeout.|
+  |**params**|_pointer to a csocket_ `csocket_t *src_socket`, _pointer to a timeval structure_ `struct timeval *timeout`|
+  |**return**|`int` - On success, return 0, otherwise return -1 and set the last error in last_err.|
+
+## UTIL
+
+* ### `csocket_ntop(int domain, const void *addr, char *dst, socklen_t len)`
+
+  |||
+  --|--
+  |**description**|Automatically calls the arpa/inet.h function ntop with appropriate address casting by providing the domain.|
+  |**params**|_address family_ `int domain`, _pointer to a network address structure_ `const void *addr`, _pointer to a output buffer_ `char *dst`, _size of the provided buffer_ `socklen_t len`|
+  |**return**|`const char *` - On success, return pointer to dst, otherwise NULL.|
+  |**alias**|`CSOCKET_NTOP(domain, addr, str, strlen)`|
+
+## FREE
+
+* ### `csocket_free(csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**|Frees by csocket allocated heap memory.|
+  |**params**|_pointer to a csocket_ `csocket_t *src_socket`|
+  |**return**|`void`|
+
+* ### `csocket_freeActivity(csocket_activity_t *activity)`
+
+  |||
+  --|--
+  |**description**|Frees by activity type allocated heap memory.|
+  |**params**|_pointer to an activity type_ `csocket_activity_t *activity`|
+  |**return**|`void`|
+
+* ### `csocket_freeMultiHandler(csocket_multiHandler_t *handler)`
+
+  |||
+  --|--
+  |**description**|Frees by multiHander type allocated heap memory.|
+  |**params**|_pointer to a multiHandler type_ `csocket_multiHandler_t *handler`|
+  |**return**|`void`|
+
+* ### `csocket_freeClients(struct csocket_clients *client)`
+
+  |||
+  --|--
+  |**description**|Frees by clients structure allocated heap memory.|
+  |**params**|_pointer to a clients structure_ `struct csocket_clients *client`|
+  |**return**|`void`|
+
+* ### `csocket_freeKeepalive(csocket_keepalive_t *ka)`
+
+  |||
+  --|--
+  |**description**|Frees by keepalive allocated heap memory.|
+  |**params**|_pointer to a keepalive type_ `csocket_keepalive_t *ka`|
+  |**return**|`void`|
+
+## CLOSE
+
+* ### c`socket_close(csocket_t *src_socket)`
+
+  |||
+  --|--
+  |**description**|Closes the connection and frees the socket/csocket.|
+  |**params**|_pointer to a csocket_ `csocket *src_socket`|
+  |**return**|`void`|
