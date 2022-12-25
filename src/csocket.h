@@ -29,7 +29,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 #include <winsock2.h>
-#include <Ws2tcpip.h>
+#include <ws2tcpip.h>
 #include <stdio.h>
 #include <io.h>
 #include <time.h>
